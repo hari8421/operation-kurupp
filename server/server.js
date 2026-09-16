@@ -6,6 +6,13 @@ const path = require('path');
 const crypto = require('crypto');
 const url = require('url');
 
+process.on('uncaughtException', (err) => {
+  console.error('[SERVER EXCEPTION]', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[SERVER REJECTION]', reason);
+});
+
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
@@ -341,27 +348,27 @@ function broadcastRoomState(room) {
     harthalActive: room.harthalActive,
     players: Object.values(room.players).map(p => ({
       id: p.id,
-      name: p.name,
-      faction: p.faction,
-      dressStyle: p.dressStyle,
-      disguise: p.disguise,
-      x: Math.round(p.x),
-      y: Math.round(p.y),
-      angle: Number(p.angle.toFixed(2)),
-      speed: Number(p.speed.toFixed(1)),
-      vehicleId: p.vehicleId,
-      stamina: Math.round(p.stamina),
-      score: p.score
+      name: p.name || 'Player',
+      faction: p.faction || 'police',
+      dressStyle: p.dressStyle || 'khaki_uniform',
+      disguise: p.disguise || 'default',
+      x: Math.round(Number(p.x) || 0),
+      y: Math.round(Number(p.y) || 0),
+      angle: Number((Number(p.angle) || 0).toFixed(2)),
+      speed: Number((Number(p.speed) || 0).toFixed(1)),
+      vehicleId: p.vehicleId || null,
+      stamina: Math.round(Number(p.stamina) || 100),
+      score: p.score || 0
     })),
     vehicles: room.vehicles.map(v => ({
       id: v.id,
       type: v.type,
       name: v.name,
-      x: Math.round(v.x),
-      y: Math.round(v.y),
-      angle: Number(v.angle.toFixed(2)),
-      speed: Number(v.speed.toFixed(1)),
-      driverId: v.driverId,
+      x: Math.round(Number(v.x) || 0),
+      y: Math.round(Number(v.y) || 0),
+      angle: Number((Number(v.angle) || 0).toFixed(2)),
+      speed: Number((Number(v.speed) || 0).toFixed(1)),
+      driverId: v.driverId || null,
       color: v.color,
       beacon: v.beacon
     })),
@@ -631,11 +638,11 @@ function handleClientMessage(client, messageStr, setRoomContext) {
       const p = room.players[client.id];
       if (!p) return;
 
-      p.x = Math.max(50, Math.min(WORLD_WIDTH - 50, msg.x || p.x));
-      p.y = Math.max(50, Math.min(WORLD_HEIGHT - 50, msg.y || p.y));
-      p.angle = msg.angle !== undefined ? msg.angle : p.angle;
-      p.speed = msg.speed !== undefined ? msg.speed : p.speed;
-      if (msg.stamina !== undefined) p.stamina = msg.stamina;
+      if (typeof msg.x === 'number' && !isNaN(msg.x)) p.x = Math.max(50, Math.min(WORLD_WIDTH - 50, msg.x));
+      if (typeof msg.y === 'number' && !isNaN(msg.y)) p.y = Math.max(50, Math.min(WORLD_HEIGHT - 50, msg.y));
+      if (typeof msg.angle === 'number' && !isNaN(msg.angle)) p.angle = msg.angle;
+      if (typeof msg.speed === 'number' && !isNaN(msg.speed)) p.speed = msg.speed;
+      if (typeof msg.stamina === 'number' && !isNaN(msg.stamina)) p.stamina = msg.stamina;
 
       // Sync vehicle if player is driving
       if (p.vehicleId) {
