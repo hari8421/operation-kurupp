@@ -235,6 +235,14 @@
         document.getElementById('startGameBtn').click();
       }, 300);
     }
+    if (new URLSearchParams(window.location.search).has('casefile')) {
+      setTimeout(() => {
+        document.getElementById('startGameBtn').click();
+        setTimeout(() => {
+          document.getElementById('caseFileBtn').click();
+        }, 500);
+      }, 300);
+    }
 
     // Era Switcher Button
     const eras = ['1984', '1990s', '2000s'];
@@ -242,12 +250,8 @@
       if (!window.gameInstance) return;
       const curIdx = eras.indexOf(window.gameInstance.era);
       const nextEra = eras[(curIdx + 1) % eras.length];
-      window.gameInstance.era = nextEra;
       document.getElementById('eraBtn').textContent = `ERA: ${nextEra}`;
-      window.gameInstance.sendWsMessage({
-        type: 'CHANGE_ERA',
-        era: nextEra
-      });
+      window.gameInstance.changeEra(nextEra);
     });
 
     // Case File Modal Toggle
@@ -255,12 +259,18 @@
       if (window.gameInstance) window.gameInstance.toggleCaseFile();
     });
     document.getElementById('closeCaseFileBtn').addEventListener('click', () => {
-      document.getElementById('casefileModal').style.display = 'none';
+      const modal = document.getElementById('casefileModal');
+      if (modal) modal.style.display = 'none';
     });
 
     // Audio Toggle
     document.getElementById('audioToggleBtn').addEventListener('click', () => {
-      if (window.gameInstance) window.gameInstance.toggleAudio();
+      if (window.gameInstance) {
+        const isMuted = window.gameInstance.toggleAudio();
+        const btn = document.getElementById('audioToggleBtn');
+        btn.textContent = isMuted ? '🔇 MUTED' : '🔊 AUDIO';
+        btn.style.background = isMuted ? '#7f1d1d' : '#065f46';
+      }
     });
 
     // Radio Input Send

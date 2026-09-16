@@ -23,18 +23,18 @@ class KurupGame {
 
     this.viewport = { x: 0, y: 0, width: 800, height: 600 };
     this.keys = {};
-    this.touchVector = { x: 0, y: 0, active: false };
+    this.touchVector = { x: 0, y: 0, active: false, mag: 0 };
     this.isSprinting = false;
 
-    // World state
+    // World state (initialized with offline defaults immediately)
     this.era = '1984';
     this.weather = 'monsoon';
     this.rainIntensity = 0.75;
     this.dayTime = 0.35;
     this.harthalActive = false;
     this.players = {};
-    this.vehicles = [];
-    this.clues = [];
+    this.vehicles = this.getDefaultVehicles('1984');
+    this.clues = this.getDefaultClues();
     this.kurupState = { x: 950, y: 950, disguise: 'gulf_tycoon', captured: false, escaped: false };
     this.scores = { police: 0, red_cadres: 0, tricolor_cadres: 0, gulf_syndicate: 0 };
 
@@ -55,6 +55,124 @@ class KurupGame {
     // Start loop
     this.lastTime = performance.now();
     requestAnimationFrame((t) => this.gameLoop(t));
+  }
+
+  getDefaultVehicles(era = '1984') {
+    let id = 1;
+    const vehicles = [];
+    if (era === '1984') {
+      vehicles.push({
+        id: `veh_${id++}`,
+        type: 'ambassador_police',
+        name: 'HM Ambassador Mark 3 (Police Squad)',
+        x: 1700, y: 1350, angle: 0, speed: 0, maxSpeed: 6.8,
+        driverId: null, color: '#f8f9fa', beacon: true, horn: 'siren'
+      });
+      vehicles.push({
+        id: `veh_${id++}`,
+        type: 'ambassador_taxi',
+        name: 'HM Ambassador Taxi',
+        x: 1850, y: 1400, angle: 1.5, speed: 0, maxSpeed: 6.2,
+        driverId: null, color: '#212529', roofColor: '#f1c40f', horn: 'honk'
+      });
+      vehicles.push({
+        id: `veh_${id++}`,
+        type: 'bullet350',
+        name: 'Royal Enfield Bullet 350 (Heavy Cast Iron)',
+        x: 1650, y: 1250, angle: 0.5, speed: 0, maxSpeed: 7.8,
+        driverId: null, color: '#1a1a1a', horn: 'thump'
+      });
+      vehicles.push({
+        id: `veh_${id++}`,
+        type: 'chetak',
+        name: 'Bajaj Chetak 150 Scooter',
+        x: 1900, y: 1200, angle: 3.14, speed: 0, maxSpeed: 5.4,
+        driverId: null, color: '#27ae60', horn: 'peep'
+      });
+      vehicles.push({
+        id: `veh_${id++}`,
+        type: 'ksrtc_bus',
+        name: 'KSRTC "Aana Vandi" Vintage Fast Passenger',
+        x: 1750, y: 1550, angle: 0, speed: 0, maxSpeed: 5.2,
+        driverId: null, color: '#c0392b', stripeColor: '#f39c12', horn: 'ksrtc'
+      });
+      vehicles.push({
+        id: `veh_${id++}`,
+        type: 'kettuvallam',
+        name: 'Alappuzha Country Boat (വള്ളം)',
+        x: 500, y: 1500, angle: 1.2, speed: 0, maxSpeed: 4.4,
+        driverId: null, isWater: true, color: '#5d4037', horn: 'water'
+      });
+    } else if (era === '1990s') {
+      vehicles.push({
+        id: `veh_${id++}`,
+        type: 'contessa',
+        name: 'HM Contessa Classic (Gulf Tycoon)',
+        x: 1800, y: 1350, angle: 0, speed: 0, maxSpeed: 8.2,
+        driverId: null, color: '#7f1d1d', horn: 'honk'
+      });
+      vehicles.push({
+        id: `veh_${id++}`,
+        type: 'padmini',
+        name: 'Premier Padmini 118NE',
+        x: 1880, y: 1250, angle: 1.8, speed: 0, maxSpeed: 6.4,
+        driverId: null, color: '#1e3a8a', horn: 'peep'
+      });
+      vehicles.push({
+        id: `veh_${id++}`,
+        type: 'yamaha_rx100',
+        name: 'Yamaha RX 100 (2-Stroke Fury)',
+        x: 1650, y: 1300, angle: 0.2, speed: 0, maxSpeed: 8.6,
+        driverId: null, color: '#b91c1c', horn: 'rev'
+      });
+      vehicles.push({
+        id: `veh_${id++}`,
+        type: 'tata_sumo',
+        name: 'Tata Sumo High-Range 4x4',
+        x: 2900, y: 650, angle: 3.1, speed: 0, maxSpeed: 7.0,
+        driverId: null, color: '#f3f4f6', horn: 'honk'
+      });
+      vehicles.push({
+        id: `veh_${id++}`,
+        type: 'ksrtc_bus',
+        name: 'KSRTC Super Express Bus',
+        x: 1750, y: 1550, angle: 0, speed: 0, maxSpeed: 5.6,
+        driverId: null, color: '#c0392b', stripeColor: '#f1c40f', horn: 'ksrtc'
+      });
+    } else {
+      vehicles.push({
+        id: `veh_${id++}`,
+        type: 'bolero_police',
+        name: 'Mahindra Bolero Police Interceptor',
+        x: 1700, y: 1350, angle: 0, speed: 0, maxSpeed: 7.6,
+        driverId: null, color: '#ffffff', beacon: true, horn: 'siren'
+      });
+      vehicles.push({
+        id: `veh_${id++}`,
+        type: 'auto_rickshaw',
+        name: 'Kerala 3-Wheeler Autorickshaw',
+        x: 1820, y: 1300, angle: 2.1, speed: 0, maxSpeed: 6.0,
+        driverId: null, color: '#111827', hoodColor: '#eab308', horn: 'peep'
+      });
+      vehicles.push({
+        id: `veh_${id++}`,
+        type: 'bullet350',
+        name: 'Royal Enfield Classic 350',
+        x: 1650, y: 1250, angle: 0.5, speed: 0, maxSpeed: 8.0,
+        driverId: null, color: '#1f2937', horn: 'thump'
+      });
+    }
+    return vehicles;
+  }
+
+  getDefaultClues() {
+    return [
+      { id: 'clue_burnt_car', x: 520, y: 720, title: 'Charred Ambassador Skeleton', desc: 'Burnt car remains found in Mavelikkara paddy fields. Fake insurance papers!', found: false },
+      { id: 'clue_hotel_bill', x: 960, y: 970, title: 'Toddy Shop Receipt', desc: 'A man in bell-bottoms and aviators paid with rare foreign currency.', found: false },
+      { id: 'clue_estate_register', x: 3020, y: 620, title: 'Munnar Planter Logbook', desc: 'A mysterious manager going by "Mr. Joshi" checked into the estate.', found: false },
+      { id: 'clue_sanyasi_cloth', x: 1980, y: 1570, title: 'Discarded Saffron Robe', desc: 'Found in the theater washroom alongside an empty bottle of foreign cologne.', found: false },
+      { id: 'clue_forged_passport', x: 1810, y: 1320, title: 'Forged Travel Documents', desc: 'Stamped with exit visa for Abu Dhabi via Bombay port.', found: false }
+    ];
   }
 
   initCanvas() {
@@ -92,7 +210,10 @@ class KurupGame {
       this.keys[e.code] = true;
 
       if (e.code === 'KeyE') this.handleInteract();
-      if (e.code === 'Space') this.handleHorn();
+      if (e.code === 'Space') {
+        e.preventDefault();
+        this.handleHorn();
+      }
       if (e.code === 'KeyQ' || e.code === 'KeyF') this.handleAbility();
       if (e.code === 'KeyM') this.toggleAudio();
       if (e.code === 'KeyC') this.toggleCaseFile();
@@ -130,7 +251,7 @@ class KurupGame {
       for (let i = 0; i < e.changedTouches.length; i++) {
         if (e.changedTouches[i].identifier === touchId) {
           touchId = null;
-          this.touchVector = { x: 0, y: 0, active: false };
+          this.touchVector = { x: 0, y: 0, active: false, mag: 0 };
           thumb.style.transform = 'translate(0px, 0px)';
           break;
         }
@@ -152,7 +273,8 @@ class KurupGame {
       this.touchVector = {
         x: dx / maxRadius,
         y: dy / maxRadius,
-        active: dist > 5
+        active: dist > 4,
+        mag: Math.min(1.0, dist / maxRadius)
       };
     };
 
@@ -161,12 +283,49 @@ class KurupGame {
     window.addEventListener('touchend', onTouchEnd, { passive: false });
     window.addEventListener('touchcancel', onTouchEnd, { passive: false });
 
-    // Touch Action Buttons
-    document.getElementById('btn-interact').addEventListener('click', () => this.handleInteract());
-    document.getElementById('btn-sprint').addEventListener('touchstart', () => { this.isSprinting = true; });
-    document.getElementById('btn-sprint').addEventListener('touchend', () => { this.isSprinting = false; });
-    document.getElementById('btn-horn').addEventListener('click', () => this.handleHorn());
-    document.getElementById('btn-ability').addEventListener('click', () => this.handleAbility());
+    // Multi-Input Action Buttons (Support Pointerdown & Click for 0ms latency)
+    const setupButton = (id, callback) => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      let handled = false;
+      btn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        handled = true;
+        callback();
+      });
+      btn.addEventListener('click', (e) => {
+        if (!handled) {
+          e.preventDefault();
+          callback();
+        }
+        handled = false;
+      });
+    };
+
+    setupButton('btn-interact', () => this.handleInteract());
+    setupButton('btn-horn', () => this.handleHorn());
+    setupButton('btn-ability', () => this.handleAbility());
+
+    // Sprint Button (Press and Hold)
+    const sprintBtn = document.getElementById('btn-sprint');
+    if (sprintBtn) {
+      const startSprint = (e) => {
+        e.preventDefault();
+        this.isSprinting = true;
+        sprintBtn.style.transform = 'scale(0.92)';
+        sprintBtn.style.background = '#059669';
+      };
+      const stopSprint = (e) => {
+        e.preventDefault();
+        this.isSprinting = false;
+        sprintBtn.style.transform = 'scale(1)';
+        sprintBtn.style.background = 'rgba(16, 149, 106, 0.7)';
+      };
+      sprintBtn.addEventListener('pointerdown', startSprint);
+      sprintBtn.addEventListener('pointerup', stopSprint);
+      sprintBtn.addEventListener('pointerleave', stopSprint);
+      sprintBtn.addEventListener('pointercancel', stopSprint);
+    }
   }
 
   // ==========================================
@@ -202,11 +361,10 @@ class KurupGame {
 
       this.ws.onclose = () => {
         this.connected = false;
-        // Retry connection after 2 seconds
         setTimeout(() => this.initNetwork(), 2500);
       };
     } catch (e) {
-      console.warn('Standalone offline mode running.');
+      console.warn('Standalone offline mode active.');
     }
   }
 
@@ -239,26 +397,39 @@ class KurupGame {
           if (p.id !== this.player.id) {
             this.players[p.id] = p;
           } else {
-            // Keep local score and stamina synchronized
             this.player.score = p.score;
           }
         });
 
-        // Sync vehicles
-        this.vehicles = msg.vehicles;
+        // Sync vehicles while PRESERVING local authoritative driver position
+        if (msg.vehicles && msg.vehicles.length > 0) {
+          msg.vehicles.forEach(serverV => {
+            if (this.player.vehicleId && serverV.id === this.player.vehicleId) {
+              serverV.x = this.player.x;
+              serverV.y = this.player.y;
+              serverV.angle = this.player.angle;
+              serverV.speed = this.player.speed;
+              serverV.driverId = this.player.id;
+            }
+          });
+          this.vehicles = msg.vehicles;
+        }
+
         this.updateUi();
         break;
 
       case 'VEHICLE_BOARDED':
         this.player.vehicleId = msg.vehicleId;
         window.kurupAudio.startEngine(msg.vehicleId.includes('bullet') ? 'bullet' : 'car');
-        this.showAlert(`Boarded: ${msg.vehicleName}`);
+        this.showAlert(`🚗 Boarded: ${msg.vehicleName}`);
+        this.updateUi();
         break;
 
       case 'VEHICLE_EXITED':
         this.player.vehicleId = null;
         window.kurupAudio.stopEngine();
         this.showAlert('Exited vehicle');
+        this.updateUi();
         break;
 
       case 'DISGUISE_CHANGED':
@@ -274,36 +445,66 @@ class KurupGame {
   handleInteract() {
     window.kurupAudio.ensureContext();
 
+    // 1. EXIT VEHICLE (Instant Local Execution)
     if (this.player.vehicleId) {
-      // Exit vehicle
-      this.sendWsMessage({ type: 'EXIT_VEHICLE' });
+      const oldV = this.vehicles.find(v => v.id === this.player.vehicleId);
+      if (oldV) oldV.driverId = null;
+      const exitedId = this.player.vehicleId;
       this.player.vehicleId = null;
+      this.player.speed = 0;
       window.kurupAudio.stopEngine();
+      this.showAlert('Exited vehicle onto foot.');
+      this.sendWsMessage({ type: 'EXIT_VEHICLE', vehicleId: exitedId });
+      this.updateUi();
       return;
     }
 
-    // Check nearest vehicle to enter
+    // 2. ENTER NEAREST VEHICLE (Generous Detection Radius)
+    let nearestVehicle = null;
+    let minDist = Infinity;
     for (const v of this.vehicles) {
+      const isBus = v.type === 'ksrtc_bus';
+      const interactRadius = isBus ? 135 : 95;
       const dist = Math.hypot(this.player.x - v.x, this.player.y - v.y);
-      if (dist < 55 && !v.driverId) {
-        this.sendWsMessage({
-          type: 'ENTER_VEHICLE',
-          vehicleId: v.id
-        });
-        return;
+      if (dist < interactRadius && (!v.driverId || v.driverId === this.player.id) && dist < minDist) {
+        minDist = dist;
+        nearestVehicle = v;
       }
     }
 
-    // Check nearest clue to inspect
+    if (nearestVehicle) {
+      // Instant Local Prediction
+      this.player.vehicleId = nearestVehicle.id;
+      nearestVehicle.driverId = this.player.id;
+      this.player.x = nearestVehicle.x;
+      this.player.y = nearestVehicle.y;
+      this.player.angle = nearestVehicle.angle;
+      this.player.speed = 0;
+
+      window.kurupAudio.startEngine(nearestVehicle.type.includes('bullet') ? 'bullet' : 'car');
+      this.showAlert(`🚗 Boarded ${nearestVehicle.name}! Drive with W/S or Joystick!`);
+
+      this.sendWsMessage({
+        type: 'ENTER_VEHICLE',
+        vehicleId: nearestVehicle.id
+      });
+      this.updateUi();
+      return;
+    }
+
+    // 3. INSPECT NEAREST CLUE
     for (const clue of this.clues) {
       const dist = Math.hypot(this.player.x - clue.x, this.player.y - clue.y);
-      if (dist < 60 && !clue.found) {
+      if (dist < 80 && !clue.found) {
+        clue.found = true;
+        this.player.score += 150;
         this.sendWsMessage({
           type: 'CLUE_DISCOVERED',
           clueId: clue.id
         });
         window.kurupAudio.playClueFound();
         this.showAlert(`🔎 CLUE UNCOVERED: ${clue.title}!`);
+        this.updateUi();
         return;
       }
     }
@@ -330,33 +531,62 @@ class KurupGame {
     else if (this.player.faction === 'kurup') abilityName = 'disguise_shift';
     else abilityName = 'harthal';
 
+    if (abilityName === 'harthal') {
+      this.harthalActive = true;
+      this.player.score += 50;
+      this.showAlert('🚨 KERALA-WIDE HARTHAL DECLARED! TRAFFIC HALTED!');
+    } else if (abilityName === 'nakabandi') {
+      this.player.score += 75;
+      this.showAlert('🚓 POLICE NAKABANDI ROADBLOCK ACTIVATED!');
+    } else if (abilityName === 'disguise_shift') {
+      const disguises = ['gulf_tycoon', 'sanyasi', 'toddy_tapper', 'police_si'];
+      this.player.disguise = disguises[(disguises.indexOf(this.player.disguise) + 1) % disguises.length];
+      this.player.score += 100;
+      this.showAlert(`🎭 Disguise shifted to: ${this.player.disguise.replace('_', ' ').toUpperCase()}!`);
+    }
+
     this.sendWsMessage({
       type: 'USE_ABILITY',
       ability: abilityName
     });
+    this.updateUi();
+  }
 
-    if (abilityName === 'harthal') {
-      this.showAlert('🚨 KERALA-WIDE HARTHAL DECLARED! TRAFFIC HALTED!');
-    } else if (abilityName === 'nakabandi') {
-      this.showAlert('🚓 POLICE NAKABANDI ROADBLOCK ACTIVATED!');
+  changeEra(nextEra) {
+    this.era = nextEra;
+    if (this.player.vehicleId) {
+      this.player.vehicleId = null;
+      window.kurupAudio.stopEngine();
     }
+    this.vehicles = this.getDefaultVehicles(nextEra);
+    this.showAlert(`⏳ Time warp: Shifted to ${nextEra} era! New vehicles spawned!`);
+    window.kurupAudio.playClueFound();
+    this.sendWsMessage({
+      type: 'CHANGE_ERA',
+      era: nextEra
+    });
+    this.updateUi();
   }
 
   toggleAudio() {
     const isMuted = window.kurupAudio.toggleMute();
     this.showAlert(isMuted ? 'Audio Muted' : 'Audio Enabled');
+    return isMuted;
   }
 
   toggleCaseFile() {
     const modal = document.getElementById('casefileModal');
-    modal.style.display = (modal.style.display === 'flex' ? 'none' : 'flex');
-    if (modal.style.display === 'flex') {
+    if (!modal) return;
+    const isVisible = (modal.style.display === 'flex');
+    modal.style.display = isVisible ? 'none' : 'flex';
+    if (!isVisible) {
       this.renderCaseFile();
     }
   }
 
   showAlert(text) {
     const ticker = document.getElementById('alert-ticker');
+    if (!ticker) return;
     ticker.textContent = text;
     ticker.style.display = 'block';
     clearTimeout(this.alertTimer);
@@ -366,53 +596,104 @@ class KurupGame {
   }
 
   // ==========================================
-  // GAME UPDATE LOOP & PHYSICS
+  // GAME UPDATE LOOP & DRIVING PHYSICS
   // ==========================================
   update(dt) {
     window.kurupSprites.update();
 
-    // 1. Calculate Player Movement
-    let moveX = 0, moveY = 0;
-    if (this.keys['KeyW'] || this.keys['ArrowUp']) moveY -= 1;
-    if (this.keys['KeyS'] || this.keys['ArrowDown']) moveY += 1;
-    if (this.keys['KeyA'] || this.keys['ArrowLeft']) moveX -= 1;
-    if (this.keys['KeyD'] || this.keys['ArrowRight']) moveX += 1;
-
-    if (this.touchVector.active) {
-      moveX = this.touchVector.x;
-      moveY = this.touchVector.y;
-    }
-
-    const isMoving = Math.hypot(moveX, moveY) > 0.05;
-    const isSprint = this.keys['ShiftLeft'] || this.keys['ShiftRight'] || this.isSprinting;
-
     if (this.player.vehicleId) {
-      // VEHICLE DRIVING PHYSICS
+      // =======================================
+      // VEHICLE DRIVING PHYSICS (Keyboard & Touch)
+      // =======================================
       const currentVehicle = this.vehicles.find(v => v.id === this.player.vehicleId);
-      const maxSpeed = (currentVehicle ? currentVehicle.maxSpeed : 6.0) * (this.harthalActive ? 0.4 : 1.0);
+      const maxSpeed = (currentVehicle ? currentVehicle.maxSpeed : 6.5) * (this.harthalActive ? 0.35 : 1.0);
+      const accel = (currentVehicle && currentVehicle.type.includes('bullet') ? 0.32 : 0.24);
 
-      if (isMoving) {
-        const targetAngle = Math.atan2(moveY, moveX);
-        let angleDiff = targetAngle - this.player.angle;
+      const isForward = this.keys['KeyW'] || this.keys['ArrowUp'];
+      const isReverse = this.keys['KeyS'] || this.keys['ArrowDown'];
+      const isLeft = this.keys['KeyA'] || this.keys['ArrowLeft'];
+      const isRight = this.keys['KeyD'] || this.keys['ArrowRight'];
+
+      if (this.touchVector.active) {
+        // Touch Joystick Driving
+        const joyAngle = Math.atan2(this.touchVector.y, this.touchVector.x);
+        let angleDiff = joyAngle - this.player.angle;
         while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
         while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
 
-        this.player.angle += angleDiff * 0.12; // Steering response
-        this.player.speed = Math.min(maxSpeed, this.player.speed + 0.25);
+        if (Math.abs(angleDiff) < Math.PI * 0.65) {
+          // Accelerate forward along joystick direction
+          this.player.angle += angleDiff * 0.11;
+          this.player.speed = Math.min(maxSpeed, this.player.speed + accel * this.touchVector.mag);
+        } else {
+          // Reverse
+          let revDiff = (joyAngle + Math.PI) - this.player.angle;
+          while (revDiff > Math.PI) revDiff -= Math.PI * 2;
+          while (revDiff < -Math.PI) revDiff += Math.PI * 2;
+          this.player.angle += revDiff * 0.11;
+          this.player.speed = Math.max(-maxSpeed * 0.45, this.player.speed - accel * 0.7 * this.touchVector.mag);
+        }
       } else {
-        this.player.speed *= 0.94; // Deceleration
+        // Keyboard Driving
+        if (isForward) {
+          this.player.speed = Math.min(maxSpeed, this.player.speed + accel);
+        } else if (isReverse) {
+          this.player.speed = Math.max(-maxSpeed * 0.45, this.player.speed - accel * 0.7);
+        } else {
+          this.player.speed *= 0.94;
+          if (Math.abs(this.player.speed) < 0.05) this.player.speed = 0;
+        }
+
+        // Steering
+        const steerRate = 0.055;
+        const steerFactor = Math.min(1.0, Math.abs(this.player.speed) / (maxSpeed * 0.3) + 0.35);
+        const revSign = this.player.speed < -0.1 ? -1 : 1;
+
+        if (isLeft) {
+          this.player.angle -= steerRate * steerFactor * revSign;
+        }
+        if (isRight) {
+          this.player.angle += steerRate * steerFactor * revSign;
+        }
       }
 
+      // Update position
       this.player.x += Math.cos(this.player.angle) * this.player.speed;
       this.player.y += Math.sin(this.player.angle) * this.player.speed;
+
+      // Keep vehicle strictly synchronized to player
+      if (currentVehicle) {
+        currentVehicle.x = this.player.x;
+        currentVehicle.y = this.player.y;
+        currentVehicle.angle = this.player.angle;
+        currentVehicle.speed = this.player.speed;
+        currentVehicle.driverId = this.player.id;
+      }
+
       window.kurupAudio.updateEngine(this.player.speed, maxSpeed);
 
     } else {
+      // =======================================
       // ON-FOOT MOVEMENT PHYSICS
+      // =======================================
+      let moveX = 0, moveY = 0;
+      if (this.keys['KeyW'] || this.keys['ArrowUp']) moveY -= 1;
+      if (this.keys['KeyS'] || this.keys['ArrowDown']) moveY += 1;
+      if (this.keys['KeyA'] || this.keys['ArrowLeft']) moveX -= 1;
+      if (this.keys['KeyD'] || this.keys['ArrowRight']) moveX += 1;
+
+      if (this.touchVector.active) {
+        moveX = this.touchVector.x;
+        moveY = this.touchVector.y;
+      }
+
+      const isMoving = Math.hypot(moveX, moveY) > 0.05;
+      const isSprint = this.keys['ShiftLeft'] || this.keys['ShiftRight'] || this.isSprinting;
+
       if (isMoving) {
         this.player.angle = Math.atan2(moveY, moveX);
         const baseSpeed = isSprint && this.player.stamina > 5 ? 4.2 : 2.6;
-        this.player.speed = baseSpeed * (this.harthalActive ? 0.8 : 1.0);
+        this.player.speed = baseSpeed * (this.harthalActive ? 0.75 : 1.0);
 
         if (isSprint && this.player.stamina > 0) {
           this.player.stamina = Math.max(0, this.player.stamina - dt * 18);
@@ -433,8 +714,8 @@ class KurupGame {
     // Viewport camera smooth follow
     const targetVx = this.player.x - this.viewport.width / 2;
     const targetVy = this.player.y - this.viewport.height / 2;
-    this.viewport.x += (targetVx - this.viewport.x) * 0.1;
-    this.viewport.y += (targetVy - this.viewport.y) * 0.1;
+    this.viewport.x += (targetVx - this.viewport.x) * 0.12;
+    this.viewport.y += (targetVy - this.viewport.y) * 0.12;
 
     // Send input sync to server (25 updates/sec)
     const now = performance.now();
@@ -497,9 +778,9 @@ class KurupGame {
       ctx.stroke();
 
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 8px sans-serif';
+      ctx.font = 'bold 9px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(clue.found ? '✓ FOUND' : '🔍 CLUE', 0, -14);
+      ctx.fillText(clue.found ? '✓ FOUND' : '🔍 CLUE', 0, -15);
       ctx.restore();
     }
 
@@ -508,7 +789,77 @@ class KurupGame {
       window.kurupSprites.drawVehicle(ctx, v);
     }
 
-    // 4. Draw Other Players
+    // 4. Draw Floating Interactive Badges over nearby vehicles / clues
+    if (!this.player.vehicleId) {
+      let nearestV = null;
+      let minVdist = Infinity;
+      for (const v of this.vehicles) {
+        const isBus = v.type === 'ksrtc_bus';
+        const r = isBus ? 135 : 95;
+        const d = Math.hypot(this.player.x - v.x, this.player.y - v.y);
+        if (d < r && (!v.driverId || v.driverId === this.player.id) && d < minVdist) {
+          minVdist = d;
+          nearestV = v;
+        }
+      }
+
+      if (nearestV) {
+        ctx.save();
+        ctx.translate(nearestV.x, nearestV.y - 34);
+        const bounce = Math.sin(window.kurupSprites.animTick * 6) * 4;
+        ctx.translate(0, bounce);
+
+        // Neon badge background
+        ctx.fillStyle = 'rgba(14, 116, 144, 0.92)';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.roundRect(-65, -13, 130, 26, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🚗 [E] DRIVE ' + nearestV.name.split(' ')[0], 0, 4);
+
+        // Arrow down
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.moveTo(-6, 13);
+        ctx.lineTo(6, 13);
+        ctx.lineTo(0, 19);
+        ctx.fill();
+
+        ctx.restore();
+      }
+
+      // Clue prompt
+      for (const clue of this.clues) {
+        if (!clue.found && Math.hypot(this.player.x - clue.x, this.player.y - clue.y) < 80) {
+          ctx.save();
+          ctx.translate(clue.x, clue.y - 28);
+          const bounce = Math.sin(window.kurupSprites.animTick * 6) * 4;
+          ctx.translate(0, bounce);
+
+          ctx.fillStyle = 'rgba(22, 101, 52, 0.92)';
+          ctx.strokeStyle = '#4ade80';
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.roundRect(-58, -13, 116, 26, 6);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 10px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('🔍 [E] EXAMINE CLUE', 0, 4);
+          ctx.restore();
+        }
+      }
+    }
+
+    // 5. Draw Other Players
     for (const pid in this.players) {
       const p = this.players[pid];
       if (!p.vehicleId) {
@@ -516,12 +867,12 @@ class KurupGame {
       }
     }
 
-    // 5. Draw Local Player (if not inside vehicle)
+    // 6. Draw Local Player (if not inside vehicle)
     if (!this.player.vehicleId) {
       window.kurupSprites.drawCharacter(ctx, this.player, true);
     }
 
-    // 6. Draw AI Kurup (if active)
+    // 7. Draw AI Kurup (if active)
     if (this.kurupState && this.player.faction !== 'kurup') {
       const k = {
         x: this.kurupState.x,
@@ -538,7 +889,7 @@ class KurupGame {
 
     ctx.restore();
 
-    // 7. Day / Night & Monsoon Atmosphere Overlay
+    // 8. Day / Night & Monsoon Atmosphere Overlay
     const nightOpacity = Math.max(0, Math.sin(this.dayTime * Math.PI * 2) * 0.45);
     ctx.fillStyle = `rgba(12, 20, 36, ${nightOpacity})`;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -559,7 +910,7 @@ class KurupGame {
       ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
-    // 8. Render Radar Minimap
+    // 9. Render Radar Minimap
     window.kurupWorldMap.drawMinimap(
       this.minimapCanvas,
       this.player,
@@ -594,10 +945,52 @@ class KurupGame {
         dash.style.display = 'none';
       }
     }
+
+    // Contextual Action Button (ENTER/DRIVE/EXIT/CLUE)
+    const interactBtn = document.getElementById('btn-interact');
+    if (interactBtn) {
+      const textSpan = interactBtn.querySelector('span:not(.btn-icon)');
+      const iconSpan = interactBtn.querySelector('.btn-icon');
+
+      if (this.player.vehicleId) {
+        if (textSpan) textSpan.textContent = 'EXIT';
+        if (iconSpan) iconSpan.textContent = '🚪';
+        interactBtn.style.borderColor = '#f59e0b';
+        interactBtn.style.background = 'rgba(180, 83, 9, 0.88)';
+        interactBtn.style.boxShadow = '0 0 14px rgba(245, 158, 11, 0.5)';
+      } else {
+        let nearV = this.vehicles.some(v => {
+          const r = v.type === 'ksrtc_bus' ? 135 : 95;
+          return Math.hypot(this.player.x - v.x, this.player.y - v.y) < r && (!v.driverId || v.driverId === this.player.id);
+        });
+        let nearC = this.clues.some(c => !c.found && Math.hypot(this.player.x - c.x, this.player.y - c.y) < 80);
+
+        if (nearV) {
+          if (textSpan) textSpan.textContent = 'DRIVE';
+          if (iconSpan) iconSpan.textContent = '🚗';
+          interactBtn.style.borderColor = '#38bdf8';
+          interactBtn.style.background = 'rgba(14, 116, 144, 0.95)';
+          interactBtn.style.boxShadow = '0 0 16px rgba(56, 189, 248, 0.7)';
+        } else if (nearC) {
+          if (textSpan) textSpan.textContent = 'CLUE';
+          if (iconSpan) iconSpan.textContent = '🔍';
+          interactBtn.style.borderColor = '#4ade80';
+          interactBtn.style.background = 'rgba(22, 101, 52, 0.95)';
+          interactBtn.style.boxShadow = '0 0 16px rgba(74, 222, 128, 0.7)';
+        } else {
+          if (textSpan) textSpan.textContent = 'ENTER';
+          if (iconSpan) iconSpan.textContent = '🚗';
+          interactBtn.style.borderColor = '#4b5563';
+          interactBtn.style.background = 'rgba(31, 41, 55, 0.85)';
+          interactBtn.style.boxShadow = 'none';
+        }
+      }
+    }
   }
 
   renderCaseFile() {
     const list = document.getElementById('cluesList');
+    if (!list) return;
     list.innerHTML = '';
     this.clues.forEach(c => {
       const div = document.createElement('div');
@@ -621,7 +1014,6 @@ class KurupGame {
   }
 }
 
-// Start game when page loads
 window.addEventListener('DOMContentLoaded', () => {
   window.gameInstance = new KurupGame();
 });

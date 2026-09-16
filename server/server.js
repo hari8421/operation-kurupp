@@ -637,6 +637,18 @@ function handleClientMessage(client, messageStr, setRoomContext) {
       p.speed = msg.speed !== undefined ? msg.speed : p.speed;
       if (msg.stamina !== undefined) p.stamina = msg.stamina;
 
+      // Sync vehicle if player is driving
+      if (p.vehicleId) {
+        const v = room.vehicles.find(veh => veh.id === p.vehicleId);
+        if (v) {
+          v.x = p.x;
+          v.y = p.y;
+          v.angle = p.angle;
+          v.speed = p.speed;
+          v.driverId = client.id;
+        }
+      }
+
       if (p.faction === 'kurup') {
         room.kurupState.x = p.x;
         room.kurupState.y = p.y;
@@ -649,7 +661,7 @@ function handleClientMessage(client, messageStr, setRoomContext) {
       if (!p) return;
 
       const vehicle = room.vehicles.find(v => v.id === msg.vehicleId);
-      if (vehicle && (!vehicle.driverId || vehicle.driverId === client.id)) {
+      if (vehicle) {
         if (p.vehicleId) {
           const oldV = room.vehicles.find(v => v.id === p.vehicleId);
           if (oldV) oldV.driverId = null;
@@ -659,6 +671,7 @@ function handleClientMessage(client, messageStr, setRoomContext) {
         p.vehicleId = vehicle.id;
         p.x = vehicle.x;
         p.y = vehicle.y;
+        p.angle = vehicle.angle;
 
         client.send(JSON.stringify({
           type: 'VEHICLE_BOARDED',
@@ -673,11 +686,15 @@ function handleClientMessage(client, messageStr, setRoomContext) {
 
     case 'EXIT_VEHICLE': {
       const p = room.players[client.id];
-      if (!p || !p.vehicleId) return;
+      if (!p) return;
 
-      const vehicle = room.vehicles.find(v => v.id === p.vehicleId);
-      if (vehicle) {
-        vehicle.driverId = null;
+      const vId = msg.vehicleId || p.vehicleId;
+      if (vId) {
+        const vehicle = room.vehicles.find(v => v.id === vId);
+        if (vehicle) {
+          vehicle.driverId = null;
+          vehicle.speed = 0;
+        }
       }
       p.vehicleId = null;
 
