@@ -1,0 +1,23 @@
+{
+  "name": "operation-kurupp",
+  "version": "1.0.0",
+  "description": "Operation Kurup: The Great Kerala Manhunt - Cross-Platform Multiplayer Game",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node server/server.js",
+    "desktop": "electron desktop/main.js",
+    "build:android": "bash scripts/build-apk.sh",
+    "build:desktop": "electron-builder --mac --win"
+  },
+  "keywords": [
+    "kerala",
+    "multiplayer",
+    "retro-game",
+    "sukumara-kurup",
+    "canvas",
+    "websocket"
+  ],
+  "author": "Antigravity Team",
+  "license": "MIT"
+}

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Operation Kurup: The Great Kerala Manhunt (ഓപ്പറേഷൻ കുറുപ്പ്)</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="game-container">
+    <!-- Main Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Top HUD Bar -->
+    <div id="top-hud">
+      <div class="hud-panel title-badge">
+        <div>
+          <h1>ഓപ്പറേഷൻ കുറുപ്പ്</h1>
+          <div class="subtitle">OPERATION KURUP: KERALA MANHUNT</div>
+        </div>
+      </div>
+
+      <div class="hud-panel hud-stats">
+        <div class="stat-group">
+          <span class="stat-label">Stamina</span>
+          <div class="stat-bar-container">
+            <div id="staminaFill" class="stat-bar-fill stamina-fill" style="width: 100%;"></div>
+          </div>
+        </div>
+
+        <div class="stat-group">
+          <span class="stat-label">Bounty Score</span>
+          <div id="playerScore" class="score-display">0</div>
+        </div>
+
+        <button id="eraBtn" class="era-badge" title="Click to shift era">ERA: 1984 RETRO</button>
+        <button id="caseFileBtn" class="era-badge" style="background: #1e3a8a; border-color: #3b82f6;">📂 CASE FILE</button>
+        <button id="audioToggleBtn" class="era-badge" style="background: #065f46; border-color: #10b981;">🔊 AUDIO</button>
+      </div>
+    </div>
+
+    <!-- Alert Ticker -->
+    <div id="alert-ticker"></div>
+
+    <!-- Keyboard Controls Hint for Desktop -->
+    <div id="controls-hint">
+      <strong>[WASD/Arrows]</strong> Move &bull; <strong>[Shift]</strong> Sprint &bull; <strong>[E]</strong> Enter/Exit Car / Inspect Clue &bull; <strong>[Space]</strong> Horn/Siren &bull; <strong>[Q/F]</strong> Ability &bull; <strong>[C]</strong> Case File
+    </div>
+
+    <!-- Radio / Police Scanner Log -->
+    <div id="radio-box">
+      <div id="radio-logs">
+        <div class="radio-msg"><span class="sender">POLICE SCANNER:</span> High alert across Alleppey, Kottayam, and Munnar routes.</div>
+      </div>
+      <div id="radio-input-row">
+        <input type="text" id="radio-input" placeholder="Type message / shout..." maxlength="100">
+      </div>
+    </div>
+
+    <!-- Bottom HUD (Vehicle Dashboard & Minimap) -->
+    <div id="bottom-hud">
+      <div id="vehicle-dash">
+        <div id="dashVehicleName" class="dash-name">HM Ambassador Mark 3</div>
+        <div id="dashSpeed" class="dash-speed">0 km/h</div>
+      </div>
+
+      <div id="minimap-container">
+        <canvas id="minimapCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Mobile Touch Controls -->
+    <div id="touch-controls">
+      <div id="joystick-zone">
+        <div class="joystick-base">
+          <div id="joystick-thumb" class="joystick-thumb"></div>
+        </div>
+      </div>
+
+      <div id="action-buttons">
+        <button id="btn-ability" class="action-btn btn-ability" title="Trigger Faction Power">
+          <span class="btn-icon">⚡</span>
+          <span>ABILITY</span>
+        </button>
+        <div class="action-row">
+          <button id="btn-sprint" class="action-btn btn-sprint" title="Sprint">
+            <span class="btn-icon">🏃</span>
+            <span>SPRINT</span>
+          </button>
+          <button id="btn-horn" class="action-btn btn-horn" title="Horn / Siren">
+            <span class="btn-icon">📢</span>
+            <span>HORN</span>
+          </button>
+          <button id="btn-interact" class="action-btn btn-interact" title="Interact / Drive">
+            <span class="btn-icon">🚗</span>
+            <span>ENTER</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lobby & Faction Selector Modal -->
+  <div id="lobbyModal" class="modal-overlay">
+    <div class="lobby-card">
+      <div class="lobby-header">
+        <h2>OPERATION KURUP</h2>
+        <p>Choose your faction, cultural dress style, and join the historic Kerala manhunt!</p>
+      </div>
+
+      <div class="form-group">
+        <label>Character / Officer Name</label>
+        <input type="text" id="playerNameInput" class="form-input" value="DYSP Haridas" maxlength="24">
+      </div>
+
+      <div class="form-group">
+        <label>Select Faction</label>
+        <div class="faction-grid">
+          <div class="faction-card active" data-faction="police">
+            <div class="faction-icon">👮</div>
+            <div class="faction-title">Kerala Police</div>
+            <div class="faction-desc">Crime Branch special squad. Setup Nakabandi roadblocks.</div>
+          </div>
+          <div class="faction-card" data-faction="red_cadre">
+            <div class="faction-icon">🚩</div>
+            <div class="faction-title">Red Cadres</div>
+            <div class="faction-desc">Mass party cadres. Call 24-hour Harthals to freeze traffic.</div>
+          </div>
+          <div class="faction-card" data-faction="tricolor_cadre">
+            <div class="faction-icon">🇮🇳</div>
+            <div class="faction-title">Tricolor Front</div>
+            <div class="faction-desc">Democratic youth front. Fast motorcades & press exposure.</div>
+          </div>
+          <div class="faction-card" data-faction="gulf_syndicate">
+            <div class="faction-icon">🌴</div>
+            <div class="faction-title">Gulf Syndicate</div>
+            <div class="faction-desc">Hawala financiers & informants with luxury vintage cars.</div>
+          </div>
+          <div class="faction-card" data-faction="kurup">
+            <div class="faction-icon">🕵️</div>
+            <div class="faction-title">Sukumara Kurup</div>
+            <div class="faction-desc">Play as the fugitive himself! Shift disguises & flee.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Authentic Dress Style</label>
+        <div class="dress-style-grid">
+          <div class="dress-pill active" data-dress="khaki_uniform">Khaki Uniform & Cap</div>
+          <div class="dress-pill" data-dress="folded_mundu">White Mundu & Red Thorthu</div>
+          <div class="dress-pill" data-dress="bell_bottoms">1980s Safari Suit & Bell-Bottoms</div>
+          <div class="dress-pill" data-dress="sanyasi">Sanyasi Saffron Robe</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Multiplayer Room Code (Optional)</label>
+        <input type="text" id="roomCodeInput" class="form-input" value="DEFAULT" placeholder="DEFAULT or enter room code">
+      </div>
+
+      <button id="startGameBtn" class="btn-primary">LAUNCH MANHUNT (ആരംഭിക്കുക)</button>
+    </div>
+  </div>
+
+  <!-- Case File Dossier Modal -->
+  <div id="casefileModal" class="modal-overlay casefile-modal">
+    <div class="lobby-card" style="max-width: 550px;">
+      <div class="lobby-header">
+        <h2 style="color: #ef4444;">📁 CRIME DOSSIER: SUKUMARA KURUP</h2>
+        <p>1984 Mavelikkara Chacko Murder & Fake Insurance Case</p>
+      </div>
+      <div class="casefile-body" id="cluesList">
+        <!-- Clues injected by JS -->
+      </div>
+      <button id="closeCaseFileBtn" class="btn-primary" style="margin-top: 16px;">CLOSE DOSSIER</button>
+    </div>
+  </div>
+
+  <!-- Load Game Scripts -->
+  <script src="js/audio.js"></script>
+  <script src="js/sprites.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/game.js"></script>
+
+  <script>
+    // Lobby Modal Logic
+    let selectedFaction = 'police';
+    let selectedDress = 'khaki_uniform';
+
+    document.querySelectorAll('.faction-card').forEach(card => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.faction-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        selectedFaction = card.getAttribute('data-faction');
+      });
+    });
+
+    document.querySelectorAll('.dress-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        document.querySelectorAll('.dress-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        selectedDress = pill.getAttribute('data-dress');
+      });
+    });
+
+    document.getElementById('startGameBtn').addEventListener('click', () => {
+      window.kurupAudio.ensureContext();
+      window.kurupAudio.startBgm();
+
+      const name = document.getElementById('playerNameInput').value.trim() || 'Comrade Investigator';
+      const room = document.getElementById('roomCodeInput').value.trim() || 'DEFAULT';
+
+      if (window.gameInstance) {
+        window.gameInstance.player.name = name;
+        window.gameInstance.player.faction = selectedFaction;
+        window.gameInstance.player.dressStyle = selectedDress;
+
+        window.gameInstance.sendWsMessage({
+          type: 'JOIN_GAME',
+          roomId: room,
+          era: window.gameInstance.era,
+          name: name,
+          faction: selectedFaction,
+          dressStyle: selectedDress
+        });
+      }
+
+      document.getElementById('lobbyModal').style.display = 'none';
+    });
+
+    // Era Switcher Button
+    const eras = ['1984', '1990s', '2000s'];
+    document.getElementById('eraBtn').addEventListener('click', () => {
+      if (!window.gameInstance) return;
+      const curIdx = eras.indexOf(window.gameInstance.era);
+      const nextEra = eras[(curIdx + 1) % eras.length];
+      window.gameInstance.era = nextEra;
+      document.getElementById('eraBtn').textContent = `ERA: ${nextEra}`;
+      window.gameInstance.sendWsMessage({
+        type: 'CHANGE_ERA',
+        era: nextEra
+      });
+    });
+
+    // Case File Modal Toggle
+    document.getElementById('caseFileBtn').addEventListener('click', () => {
+      if (window.gameInstance) window.gameInstance.toggleCaseFile();
+    });
+    document.getElementById('closeCaseFileBtn').addEventListener('click', () => {
+      document.getElementById('casefileModal').style.display = 'none';
+    });
+
+    // Audio Toggle
+    document.getElementById('audioToggleBtn').addEventListener('click', () => {
+      if (window.gameInstance) window.gameInstance.toggleAudio();
+    });
+
+    // Radio Input Send
+    const radioInput = document.getElementById('radio-input');
+    radioInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && radioInput.value.trim() && window.gameInstance) {
+        window.gameInstance.sendWsMessage({
+          type: 'CHAT_MESSAGE',
+          text: radioInput.value.trim()
+        });
+        radioInput.value = '';
+      }
+    });
+  </script>
+</body>
+</html>

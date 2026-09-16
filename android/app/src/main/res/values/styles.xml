@@ -1,0 +1,15 @@
+<resources>
+    <style name="Theme.OperationKurup" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#d97706</item>
+        <item name="colorPrimaryVariant">#b45309</item>
+        <item name="colorOnPrimary">#ffffff</item>
+        <item name="android:windowBackground">#0c120c</item>
+    </style>
+
+    <style name="Theme.OperationKurup.Fullscreen" parent="Theme.OperationKurup">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+</resources>
