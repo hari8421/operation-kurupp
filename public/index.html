@@ -229,6 +229,21 @@
       document.getElementById('lobbyModal').style.display = 'none';
     });
 
+    // Auto-launch if ?play=1 is present
+    if (new URLSearchParams(window.location.search).has('play')) {
+      setTimeout(() => {
+        document.getElementById('startGameBtn').click();
+      }, 300);
+    }
+    if (new URLSearchParams(window.location.search).has('casefile')) {
+      setTimeout(() => {
+        document.getElementById('startGameBtn').click();
+        setTimeout(() => {
+          document.getElementById('caseFileBtn').click();
+        }, 500);
+      }, 300);
+    }
+
     // Era Switcher Button
     const eras = ['1984', '1990s', '2000s'];
     document.getElementById('eraBtn').addEventListener('click', () => {
