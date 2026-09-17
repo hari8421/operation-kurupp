@@ -76,6 +76,22 @@ class KurupGame {
     this.rainDrops = [];
     this.lightningAlpha = 0;
 
+    // ── PARTICLES (skid marks, dust, speed lines) ──
+    this.particles = [];       // { x,y, vx,vy, life, maxLife, r, color, type }
+    this.skidMarks = [];       // { x,y, angle, alpha, width } — persistent trails
+    this.screenShake = { x: 0, y: 0, trauma: 0 }; // screen-space camera shake
+
+    // ── NPC PEDESTRIANS ──
+    this.npcs = [];
+    this.initNpcs();
+
+    // ── WANTED / PURSUIT SYSTEM ──
+    // wantedLevel 0-5 stars; increases when player rams things at speed
+    this.wantedLevel    = 0;
+    this.wantedTimer    = 0;   // countdown to cool down
+    this.pursuitActive  = false;
+    this.pursuitCooldown = 0;
+
     // WebSocket
     this.ws = null;
     this.connected = false;
@@ -207,6 +223,34 @@ class KurupGame {
       { id: 'clue_sanyasi_cloth', x: 1980, y: 1570, title: 'Discarded Saffron Robe', desc: 'Found in the theater washroom alongside an empty bottle of foreign cologne.', found: false },
       { id: 'clue_forged_passport', x: 1810, y: 1320, title: 'Forged Travel Documents', desc: 'Stamped with exit visa for Abu Dhabi via Bombay port.', found: false }
     ];
+  }
+
+  initNpcs() {
+    // Spawn 18 pedestrians wandering around key landmarks
+    const spawnPoints = [
+      { x: 1780, y: 1290 }, { x: 1820, y: 1310 }, { x: 1760, y: 1360 },
+      { x: 1850, y: 1280 }, { x: 1900, y: 1230 }, { x: 1680, y: 1330 },
+      { x:  960, y:  980 }, { x:  990, y:  960 }, { x:  930, y:  945 },
+      { x: 1890, y: 1250 }, { x: 1870, y: 1260 }, { x: 1910, y: 1240 },
+      { x:  520, y:  730 }, { x:  540, y:  710 }, { x:  500, y:  750 },
+      { x: 1640, y: 1170 }, { x: 2060, y: 1180 }, { x: 2010, y: 1560 }
+    ];
+    const shirtColors  = ['#ef4444','#3b82f6','#10b981','#f59e0b','#ffffff','#8b5cf6','#f97316'];
+    const clothColors  = ['#f8fafc','#374151','#1f2937','#92400e','#1e3a8a'];
+    spawnPoints.forEach((p, i) => {
+      this.npcs.push({
+        id: i,
+        x: p.x + (Math.random() - 0.5) * 40,
+        y: p.y + (Math.random() - 0.5) * 40,
+        angle: Math.random() * Math.PI * 2,
+        speed: 0.6 + Math.random() * 0.8,
+        wanderTimer: Math.random() * 180,
+        shirtColor: shirtColors[i % shirtColors.length],
+        clothColor: clothColors[i % clothColors.length],
+        fleeing: false,
+        fleeTimer: 0
+      });
+    });
   }
 
   initCanvas() {
@@ -512,6 +556,28 @@ class KurupGame {
   }
 
   // ==========================================
+  // WANTED LEVEL
+  // ==========================================
+  addWanted(delta) {
+    this.wantedLevel = Math.max(0, Math.min(5, this.wantedLevel + delta));
+    this.wantedTimer = 18; // seconds before it starts fading
+    this.updateWantedUi();
+    if (this.wantedLevel >= 3 && delta > 0) {
+      this.showAlert(`⭐ WANTED LEVEL ${this.wantedLevel} — POLICE PURSUIT INITIATED!`);
+    }
+  }
+
+  updateWantedUi() {
+    const el = document.getElementById('wantedStars');
+    if (!el) return;
+    el.textContent = '⭐'.repeat(this.wantedLevel) + '☆'.repeat(5 - this.wantedLevel);
+    el.style.color = this.wantedLevel >= 4 ? '#ef4444'
+                   : this.wantedLevel >= 2 ? '#f59e0b'
+                   : '#6b7280';
+    el.style.display = this.wantedLevel > 0 ? 'block' : 'none';
+  }
+
+  // ==========================================
   // ACTION HANDLERS
   // ==========================================
   handleInteract() {
@@ -795,6 +861,237 @@ class KurupGame {
     this.player.x = Math.max(40, Math.min(window.kurupWorldMap.width - 40, this.player.x));
     this.player.y = Math.max(40, Math.min(window.kurupWorldMap.height - 40, this.player.y));
 
+    // ── SKID MARKS ───────────────────────────────────────────────────────
+    if (this.player.vehicleId) {
+      const cv = this.vehicles.find(v => v.id === this.player.vehicleId);
+      if (cv) {
+        const isBraking = (this.keys['KeyS'] || this.keys['ArrowDown']) && this.player.speed > 2.5;
+        const isTurningFast = (this.keys['KeyA'] || this.keys['KeyD'] ||
+                               this.keys['ArrowLeft'] || this.keys['ArrowRight']) && Math.abs(this.player.speed) > 4;
+        if (isBraking || isTurningFast) {
+          // Drop a mark every few frames
+          if (Math.random() < 0.4) {
+            this.skidMarks.push({
+              x: this.player.x - Math.cos(this.player.angle) * 18,
+              y: this.player.y - Math.sin(this.player.angle) * 18,
+              angle: this.player.angle,
+              alpha: 0.55,
+              width: cv.type === 'ksrtc_bus' ? 8 : 4
+            });
+            this.skidMarks.push({
+              x: this.player.x + Math.sin(this.player.angle) * 10 - Math.cos(this.player.angle) * 18,
+              y: this.player.y - Math.cos(this.player.angle) * 10 - Math.sin(this.player.angle) * 18,
+              angle: this.player.angle,
+              alpha: 0.55,
+              width: cv.type === 'ksrtc_bus' ? 8 : 4
+            });
+          }
+        }
+        // Cap total marks
+        if (this.skidMarks.length > 400) this.skidMarks.splice(0, 20);
+        // Fade oldest marks
+        for (const m of this.skidMarks) {
+          m.alpha -= 0.0004;
+        }
+        this.skidMarks = this.skidMarks.filter(m => m.alpha > 0.02);
+      }
+    }
+
+    // ── DUST / SPEED-LINE PARTICLES ──────────────────────────────────────
+    if (this.player.vehicleId) {
+      const spd = Math.abs(this.player.speed);
+      if (spd > 3.5 && Math.random() < 0.35) {
+        // Dust from rear wheels
+        for (let d = 0; d < 2; d++) {
+          this.particles.push({
+            x: this.player.x - Math.cos(this.player.angle) * 22 + (Math.random() - 0.5) * 12,
+            y: this.player.y - Math.sin(this.player.angle) * 22 + (Math.random() - 0.5) * 12,
+            vx: -Math.cos(this.player.angle) * 1.5 + (Math.random() - 0.5) * 2,
+            vy: -Math.sin(this.player.angle) * 1.5 + (Math.random() - 0.5) * 2,
+            life: 1, maxLife: 1,
+            r: 4 + Math.random() * 5,
+            color: 'rgba(180,160,120,',
+            type: 'dust'
+          });
+        }
+      }
+      // Speed lines when going fast in vehicle
+      if (spd > 5 && Math.random() < 0.5) {
+        this.particles.push({
+          x: this.player.x + (Math.random() - 0.5) * this.viewport.width * 0.8,
+          y: this.player.y + (Math.random() - 0.5) * this.viewport.height * 0.8,
+          vx: Math.cos(this.player.angle) * -(spd * 3),
+          vy: Math.sin(this.player.angle) * -(spd * 3),
+          life: 1, maxLife: 1,
+          r: 1.5,
+          color: 'rgba(255,255,255,',
+          type: 'speedline',
+          len: 10 + spd * 3
+        });
+      }
+    }
+
+    // Footstep dust for sprinting
+    if (!this.player.vehicleId && this.player.speed > 3.5 && Math.random() < 0.25) {
+      this.particles.push({
+        x: this.player.x + (Math.random() - 0.5) * 8,
+        y: this.player.y + 8 + (Math.random() - 0.5) * 4,
+        vx: (Math.random() - 0.5) * 1.2,
+        vy: Math.random() * -1,
+        life: 1, maxLife: 1,
+        r: 2 + Math.random() * 2,
+        color: 'rgba(160,140,100,',
+        type: 'dust'
+      });
+    }
+
+    // Update / cull particles
+    for (const p of this.particles) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= 0.035;
+      p.r *= 1.04;
+    }
+    this.particles = this.particles.filter(p => p.life > 0);
+    if (this.particles.length > 300) this.particles.splice(0, 50);
+
+    // ── SCREEN SHAKE ──────────────────────────────────────────────────────
+    if (this.screenShake.trauma > 0) {
+      const t2 = this.screenShake.trauma * this.screenShake.trauma;
+      this.screenShake.x = (Math.random() - 0.5) * 20 * t2;
+      this.screenShake.y = (Math.random() - 0.5) * 20 * t2;
+      this.screenShake.trauma = Math.max(0, this.screenShake.trauma - dt * 2.2);
+    } else {
+      this.screenShake.x = 0;
+      this.screenShake.y = 0;
+    }
+
+    // Collision detection: player vehicle vs NPC — trigger shake & wanted
+    if (this.player.vehicleId) {
+      for (const npc of this.npcs) {
+        const dist = Math.hypot(this.player.x - npc.x, this.player.y - npc.y);
+        if (dist < 28 && Math.abs(this.player.speed) > 1.5) {
+          // Scatter NPC away
+          const esc = Math.atan2(npc.y - this.player.y, npc.x - this.player.x);
+          npc.x += Math.cos(esc) * 30;
+          npc.y += Math.sin(esc) * 30;
+          npc.fleeing = true;
+          npc.fleeTimer = 220;
+          npc.angle = esc;
+          // Screen shake
+          this.screenShake.trauma = Math.min(1, this.screenShake.trauma + 0.4);
+          // Impact dust burst
+          for (let d = 0; d < 6; d++) {
+            const a = Math.random() * Math.PI * 2;
+            this.particles.push({
+              x: this.player.x, y: this.player.y,
+              vx: Math.cos(a) * (2 + Math.random() * 3),
+              vy: Math.sin(a) * (2 + Math.random() * 3),
+              life: 1, maxLife: 1, r: 5 + Math.random() * 5,
+              color: 'rgba(200,160,80,', type: 'dust'
+            });
+          }
+          // Gain wanted level
+          this.addWanted(1);
+        }
+      }
+    }
+
+    // ── NPC UPDATE ────────────────────────────────────────────────────────
+    for (const npc of this.npcs) {
+      if (npc.fleeing && npc.fleeTimer > 0) {
+        // Run away from player
+        npc.fleeTimer--;
+        const fleeSpeed = 3.2;
+        npc.x += Math.cos(npc.angle) * fleeSpeed;
+        npc.y += Math.sin(npc.angle) * fleeSpeed;
+        if (npc.fleeTimer <= 0) npc.fleeing = false;
+      } else {
+        // Wander: change direction periodically
+        npc.wanderTimer--;
+        if (npc.wanderTimer <= 0) {
+          npc.angle = Math.random() * Math.PI * 2;
+          npc.speed = 0.5 + Math.random() * 1.0;
+          npc.wanderTimer = 80 + Math.random() * 160;
+        }
+        npc.x += Math.cos(npc.angle) * npc.speed;
+        npc.y += Math.sin(npc.angle) * npc.speed;
+      }
+      // Keep NPCs in world bounds, loosely around their spawn area
+      npc.x = Math.max(200, Math.min(window.kurupWorldMap.width - 200, npc.x));
+      npc.y = Math.max(200, Math.min(window.kurupWorldMap.height - 200, npc.y));
+    }
+
+    // ── KURUP AI MOVEMENT ─────────────────────────────────────────────────
+    if (this.kurupState && !this.kurupState.captured && !this.kurupState.escaped) {
+      const kx = this.kurupState.x, ky = this.kurupState.y;
+      const distToPlayer = Math.hypot(this.player.x - kx, this.player.y - ky);
+
+      // Kurup flees when police is within 300px, otherwise drifts slowly
+      if (this.player.faction === 'police' && distToPlayer < 300) {
+        // Run away from player
+        const fleeAngle = Math.atan2(ky - this.player.y, kx - this.player.x);
+        const kurupSpeed = 1.8 + (this.kurupState.fleeBoost || 0);
+        this.kurupState.x += Math.cos(fleeAngle) * kurupSpeed;
+        this.kurupState.y += Math.sin(fleeAngle) * kurupSpeed;
+        this.kurupState.angle = fleeAngle;
+        this.kurupState.speed = kurupSpeed;
+
+        // Boost if very close (panic)
+        this.kurupState.fleeBoost = distToPlayer < 120 ? 2.5 : 0;
+
+        // Randomly change disguise to confuse player
+        if (!this.kurupState._disguiseTimer) this.kurupState._disguiseTimer = 0;
+        this.kurupState._disguiseTimer--;
+        if (this.kurupState._disguiseTimer <= 0) {
+          const disguises = ['gulf_tycoon', 'sanyasi', 'toddy_tapper', 'default'];
+          const next = disguises[Math.floor(Math.random() * disguises.length)];
+          if (next !== this.kurupState.disguise) {
+            this.kurupState.disguise = next;
+            this.showAlert(`🎭 Kurup changed disguise: spotted as ${next.replace('_',' ').toUpperCase()}!`);
+          }
+          this.kurupState._disguiseTimer = 300 + Math.random() * 300;
+        }
+
+        // Capture check
+        if (distToPlayer < 40 && this.player.faction === 'police') {
+          this.kurupState.captured = true;
+          this.player.score += 500;
+          this.addWanted(-5); // clear wanted
+          this.showAlert('🏆 SUKUMARA KURUP CAPTURED! Case closed! +500 points!');
+          window.kurupAudio.playClueFound();
+          this.updateUi();
+        }
+      } else {
+        // Passive wander
+        if (!this.kurupState._wanderTimer) this.kurupState._wanderTimer = 0;
+        this.kurupState._wanderTimer--;
+        if (this.kurupState._wanderTimer <= 0) {
+          this.kurupState._wanderAngle = Math.random() * Math.PI * 2;
+          this.kurupState._wanderTimer = 120 + Math.random() * 200;
+        }
+        const wa = this.kurupState._wanderAngle || 0;
+        this.kurupState.x += Math.cos(wa) * 0.8;
+        this.kurupState.y += Math.sin(wa) * 0.8;
+        this.kurupState.angle = wa;
+        this.kurupState.speed = 0.8;
+      }
+
+      // World boundary clamp for Kurup
+      this.kurupState.x = Math.max(100, Math.min(window.kurupWorldMap.width - 100, this.kurupState.x));
+      this.kurupState.y = Math.max(100, Math.min(window.kurupWorldMap.height - 100, this.kurupState.y));
+    }
+
+    // ── WANTED LEVEL COOLDOWN ─────────────────────────────────────────────
+    if (this.wantedLevel > 0) {
+      this.wantedTimer -= dt;
+      if (this.wantedTimer <= 0) {
+        this.wantedLevel = Math.max(0, this.wantedLevel - 1);
+        this.wantedTimer = this.wantedLevel > 0 ? 12 : 0;
+        this.updateWantedUi();
+      }
+    }
+
     // Viewport camera smooth follow
     const targetVx = this.player.x - this.viewport.width / 2;
     const targetVy = this.player.y - this.viewport.height / 2;
@@ -841,36 +1138,86 @@ class KurupGame {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    ctx.save();
-    // Apply camera viewport offset
-    ctx.translate(-this.viewport.x, -this.viewport.y);
+    // Apply screen shake offset on top of viewport
+    const shakeX = this.screenShake ? this.screenShake.x : 0;
+    const shakeY = this.screenShake ? this.screenShake.y : 0;
 
-    // 1. Draw Kerala Map Landscape (Backwaters, paddy, roads, trees, landmarks)
+    ctx.save();
+    // Apply camera viewport offset + screen shake
+    ctx.translate(-this.viewport.x + shakeX, -this.viewport.y + shakeY);
+
+    // 1. Draw Kerala Map Landscape
     window.kurupWorldMap.draw(ctx, this.viewport, window.kurupSprites);
+
+    // 1b. Draw persistent skid marks (below vehicles, above road)
+    for (const m of this.skidMarks) {
+      ctx.save();
+      ctx.translate(m.x, m.y);
+      ctx.rotate(m.angle);
+      ctx.strokeStyle = `rgba(30,20,10,${m.alpha})`;
+      ctx.lineWidth = m.width;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-m.width, -m.width / 2);
+      ctx.lineTo(m.width, m.width / 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 1c. Draw dust/speed-line particles (below characters, above road)
+    for (const p of this.particles) {
+      if (p.type === 'speedline') {
+        ctx.save();
+        ctx.strokeStyle = `${p.color}${(p.life * 0.4).toFixed(2)})`;
+        ctx.lineWidth = p.r;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x - p.vx * 0.25, p.y - p.vy * 0.25);
+        ctx.stroke();
+        ctx.restore();
+      } else {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `${p.color}${(p.life * 0.45).toFixed(2)})`;
+        ctx.fill();
+      }
+    }
 
     // 2. Draw Clue Investigation Markers
     for (const clue of this.clues) {
       ctx.save();
       ctx.translate(clue.x, clue.y);
       const pulse = Math.sin(window.kurupSprites.animTick * 6) * 3;
+      // Outer glow ring
+      ctx.beginPath();
+      ctx.arc(0, 0, 16 + pulse, 0, Math.PI * 2);
+      ctx.strokeStyle = clue.found ? 'rgba(16,185,129,0.35)' : 'rgba(239,68,68,0.35)';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      // Inner dot
       ctx.fillStyle = clue.found ? '#10b981' : '#ef4444';
       ctx.beginPath();
-      ctx.arc(0, 0, 10 + pulse, 0, Math.PI * 2);
+      ctx.arc(0, 0, 9 + pulse * 0.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1.5;
       ctx.stroke();
-
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 9px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(clue.found ? '✓ FOUND' : '🔍 CLUE', 0, -15);
+      ctx.fillText(clue.found ? '✓ FOUND' : '🔍 CLUE', 0, -18);
       ctx.restore();
     }
 
     // 3. Draw Vehicles
     for (const v of this.vehicles) {
       window.kurupSprites.drawVehicle(ctx, v);
+    }
+
+    // 3b. Draw NPC pedestrians
+    for (const npc of this.npcs) {
+      window.kurupSprites.drawNPC(ctx, npc);
     }
 
     // 4. Draw Floating Interactive Badges over nearby vehicles / clues
@@ -889,11 +1236,9 @@ class KurupGame {
 
       if (nearestV) {
         ctx.save();
-        ctx.translate(nearestV.x, nearestV.y - 34);
+        ctx.translate(nearestV.x, nearestV.y - 40);
         const bounce = Math.sin(window.kurupSprites.animTick * 6) * 4;
         ctx.translate(0, bounce);
-
-        // Neon badge background
         ctx.fillStyle = 'rgba(14, 116, 144, 0.92)';
         ctx.strokeStyle = '#38bdf8';
         ctx.lineWidth = 1.8;
@@ -901,31 +1246,22 @@ class KurupGame {
         ctx.roundRect(-65, -13, 130, 26, 6);
         ctx.fill();
         ctx.stroke();
-
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 11px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('🚗 [E] DRIVE ' + nearestV.name.split(' ')[0], 0, 4);
-
-        // Arrow down
         ctx.fillStyle = '#38bdf8';
         ctx.beginPath();
-        ctx.moveTo(-6, 13);
-        ctx.lineTo(6, 13);
-        ctx.lineTo(0, 19);
-        ctx.fill();
-
+        ctx.moveTo(-6, 13); ctx.lineTo(6, 13); ctx.lineTo(0, 19); ctx.fill();
         ctx.restore();
       }
 
-      // Clue prompt
       for (const clue of this.clues) {
         if (!clue.found && Math.hypot(this.player.x - clue.x, this.player.y - clue.y) < 80) {
           ctx.save();
-          ctx.translate(clue.x, clue.y - 28);
+          ctx.translate(clue.x, clue.y - 32);
           const bounce = Math.sin(window.kurupSprites.animTick * 6) * 4;
           ctx.translate(0, bounce);
-
           ctx.fillStyle = 'rgba(22, 101, 52, 0.92)';
           ctx.strokeStyle = '#4ade80';
           ctx.lineWidth = 1.8;
@@ -933,11 +1269,33 @@ class KurupGame {
           ctx.roundRect(-58, -13, 116, 26, 6);
           ctx.fill();
           ctx.stroke();
-
           ctx.fillStyle = '#ffffff';
           ctx.font = 'bold 10px sans-serif';
           ctx.textAlign = 'center';
           ctx.fillText('🔍 [E] EXAMINE CLUE', 0, 4);
+          ctx.restore();
+        }
+      }
+
+      // Kurup capture prompt
+      if (this.kurupState && !this.kurupState.captured && this.player.faction === 'police') {
+        const dk = Math.hypot(this.player.x - this.kurupState.x, this.player.y - this.kurupState.y);
+        if (dk < 70) {
+          ctx.save();
+          ctx.translate(this.kurupState.x, this.kurupState.y - 42);
+          const bounce = Math.sin(window.kurupSprites.animTick * 8) * 5;
+          ctx.translate(0, bounce);
+          ctx.fillStyle = 'rgba(185,28,28,0.92)';
+          ctx.strokeStyle = '#f87171';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(-68, -13, 136, 26, 6);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 11px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('🚔 [E] ARREST KURUP!', 0, 4);
           ctx.restore();
         }
       }
@@ -955,9 +1313,6 @@ class KurupGame {
     if (!this.player.vehicleId) {
       window.kurupSprites.drawCharacter(ctx, this.player, true);
     } else {
-      // Player is inside a vehicle — draw their name above the vehicle so it's
-      // clear the character hasn't vanished. The cyan halo on the vehicle
-      // already marks it as locally driven; we add the name tag here.
       const dv = this.vehicles.find(v => v.id === this.player.vehicleId);
       if (dv) {
         ctx.save();
@@ -966,29 +1321,61 @@ class KurupGame {
         ctx.textAlign = 'center';
         ctx.shadowColor = 'rgba(0,0,0,0.8)';
         ctx.shadowBlur = 5;
-        ctx.fillText(this.player.name, dv.x, dv.y - 42);
+        ctx.fillText(this.player.name, dv.x, dv.y - 46);
+        ctx.shadowBlur = 0;
         ctx.restore();
       }
     }
 
-    // 7. Draw AI Kurup (if active)
-    if (this.kurupState && this.player.faction !== 'kurup') {
+    // 7. Draw AI Kurup
+    if (this.kurupState && !this.kurupState.captured && this.player.faction !== 'kurup') {
       const k = {
         x: this.kurupState.x,
         y: this.kurupState.y,
-        angle: 0,
-        speed: 1,
-        faction: 'kurup',
-        dressStyle: 'folded_mundu',
+        angle: this.kurupState.angle || 0,
+        speed: this.kurupState.speed || 0.8,
+        faction: 'gulf_syndicate',
+        dressStyle: 'bell_bottoms',
         disguise: this.kurupState.disguise,
-        name: 'Sukumara Kurup (Fugitive)'
+        name: 'Sukumara Kurup'
       };
       window.kurupSprites.drawCharacter(ctx, k, false);
+
+      // Red wanted glow ring around Kurup when police is nearby
+      if (this.player.faction === 'police') {
+        const dk = Math.hypot(this.player.x - k.x, this.player.y - k.y);
+        if (dk < 400) {
+          const pulse2 = Math.sin(window.kurupSprites.animTick * 8) * 4;
+          ctx.strokeStyle = `rgba(239,68,68,${0.2 + (1 - dk / 400) * 0.5})`;
+          ctx.lineWidth = 3;
+          ctx.shadowColor = '#ef4444';
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+          ctx.arc(k.x, k.y, 28 + pulse2, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
+      }
     }
 
-    ctx.restore();
+    // Kurup captured banner
+    if (this.kurupState && this.kurupState.captured) {
+      ctx.save();
+      ctx.translate(this.kurupState.x, this.kurupState.y);
+      ctx.fillStyle = 'rgba(16,185,129,0.92)';
+      ctx.beginPath();
+      ctx.roundRect(-55, -18, 110, 28, 6);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('✅ KURUP CAPTURED', 0, -1);
+      ctx.restore();
+    }
 
-    // 8. Day / Night & Monsoon Atmosphere Overlay
+    ctx.restore(); // end world-space transform
+
+    // 8. Day/Night & Monsoon Overlay
     const nightOpacity = Math.max(0, Math.sin(this.dayTime * Math.PI * 2) * 0.45);
     ctx.fillStyle = `rgba(12, 20, 36, ${nightOpacity})`;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -1003,13 +1390,26 @@ class KurupGame {
       ctx.stroke();
     }
 
-    // Lightning Flash Effect
+    // Lightning Flash
     if (this.lightningAlpha > 0) {
       ctx.fillStyle = `rgba(255, 255, 255, ${this.lightningAlpha})`;
       ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
-    // 9. Render Radar Minimap
+    // Red vignette when wanted level is high
+    if (this.wantedLevel >= 3) {
+      const wAlpha = (this.wantedLevel - 2) / 3 * 0.22 * (0.7 + Math.sin(window.kurupSprites.animTick * 4) * 0.3);
+      const wg = ctx.createRadialGradient(
+        this.canvas.width / 2, this.canvas.height / 2, this.canvas.height * 0.3,
+        this.canvas.width / 2, this.canvas.height / 2, this.canvas.height * 0.85
+      );
+      wg.addColorStop(0, 'rgba(185,28,28,0)');
+      wg.addColorStop(1, `rgba(185,28,28,${wAlpha})`);
+      ctx.fillStyle = wg;
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    // 9. Minimap
     window.kurupWorldMap.drawMinimap(
       this.minimapCanvas,
       this.player,
@@ -1018,7 +1418,7 @@ class KurupGame {
       this.clues
     );
 
-    // 10. Live speed readout — updated every frame so the dashboard never lags
+    // 10. Live speed display
     if (this.player.vehicleId) {
       const speedEl = document.getElementById('dashSpeed');
       if (speedEl) {
