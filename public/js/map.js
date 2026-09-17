@@ -118,8 +118,12 @@ class KurupWorldMap {
 
     // Tea Plantation Hills (Munnar North-East)
     ctx.fillStyle = '#15803d';
-    ctx.beginPath();
-    ctx.roundRect(2600, 200, 900, 700, 60);
+    if (typeof window.drawRoundedRect === 'function') {
+      window.drawRoundedRect(ctx, 2600, 200, 900, 700, 60);
+    } else {
+      ctx.beginPath();
+      ctx.rect(2600, 200, 900, 700);
+    }
     ctx.fill();
     ctx.strokeStyle = '#166534';
     ctx.lineWidth = 4;

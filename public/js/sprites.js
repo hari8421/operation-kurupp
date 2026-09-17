@@ -1,5 +1,32 @@
 // Operation Kurup: Procedural Canvas Pixel & Vector Sprite Renderer
 // Renders authentic Kerala characters, cultural dress styles, multi-era vehicles, and landmarks
+
+// Universal cross-browser rounded rectangle path builder
+function drawRoundedRect(ctx, x, y, w, h, radii) {
+  if (!radii) radii = 0;
+  let tl = 0, tr = 0, br = 0, bl = 0;
+  if (typeof radii === 'number') {
+    tl = tr = br = bl = radii;
+  } else if (Array.isArray(radii)) {
+    tl = radii[0] || 0;
+    tr = radii[1] || 0;
+    br = radii[2] || 0;
+    bl = radii[3] || 0;
+  }
+  ctx.beginPath();
+  ctx.moveTo(x + tl, y);
+  ctx.lineTo(x + w - tr, y);
+  ctx.arcTo(x + w, y, x + w, y + tr, tr);
+  ctx.lineTo(x + w, y + h - br);
+  ctx.arcTo(x + w, y + h, x + w - br, y + h, br);
+  ctx.lineTo(x + bl, y + h);
+  ctx.arcTo(x, y + h, x, y + h - bl, bl);
+  ctx.lineTo(x, y + tl);
+  ctx.arcTo(x, y, x + tl, y, tl);
+  ctx.closePath();
+}
+window.drawRoundedRect = drawRoundedRect;
+
 class KurupSpriteRenderer {
   constructor() {
     this.animTick = 0;
@@ -218,15 +245,41 @@ class KurupSpriteRenderer {
   // VEHICLES ACROSS ERAS
   // ==========================================
   drawVehicle(ctx, v) {
+    if (!v || isNaN(v.x) || isNaN(v.y)) return;
+    const angle = isNaN(v.angle) ? 0 : v.angle;
+
     ctx.save();
     ctx.translate(v.x, v.y);
-    ctx.rotate(v.angle);
+    ctx.rotate(angle);
 
     // Dynamic Vehicle Shadow
     ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
     ctx.beginPath();
     ctx.ellipse(2, 3, 28, 14, 0, 0, Math.PI * 2);
     ctx.fill();
+
+    // Active Driver Indicator Halo (if local player or other player driving)
+    if (v.driverId) {
+      const isLocalDriver = Boolean(window.gameInstance && window.gameInstance.player.id === v.driverId);
+      ctx.strokeStyle = isLocalDriver ? '#38bdf8' : '#fbbf24';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 32, 18, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Headlight beams casting forward
+      const beamGrad = ctx.createLinearGradient(16, 0, 80, 0);
+      beamGrad.addColorStop(0, 'rgba(254, 240, 138, 0.45)');
+      beamGrad.addColorStop(1, 'rgba(254, 240, 138, 0)');
+      ctx.fillStyle = beamGrad;
+      ctx.beginPath();
+      ctx.moveTo(18, -8);
+      ctx.lineTo(80, -28);
+      ctx.lineTo(80, 28);
+      ctx.lineTo(18, 8);
+      ctx.closePath();
+      ctx.fill();
+    }
 
     const t = v.type;
 
@@ -236,12 +289,11 @@ class KurupSpriteRenderer {
       // =====================================
       const isPolice = (t === 'ambassador_police');
       const bodyCol = isPolice ? '#f8fafc' : '#1f2937';
-      const roofCol = isPolice ? '#f8fafc' : '#f59e0b';
+      const roofCol = isPolice ? '#f8fafc' : (v.roofColor || '#f59e0b');
 
       // Main curved chassis
       ctx.fillStyle = bodyCol;
-      ctx.beginPath();
-      ctx.roundRect(-24, -12, 48, 24, [8, 12, 12, 8]);
+      drawRoundedRect(ctx, -24, -12, 48, 24, [8, 12, 12, 8]);
       ctx.fill();
       ctx.strokeStyle = '#374151';
       ctx.lineWidth = 1;
@@ -322,8 +374,7 @@ class KurupSpriteRenderer {
       // =====================================
       // Long wooden/metal chassis (Red & Yellow)
       ctx.fillStyle = '#b91c1c'; // KSRTC iconic red
-      ctx.beginPath();
-      ctx.roundRect(-42, -15, 84, 30, [4, 6, 6, 4]);
+      drawRoundedRect(ctx, -42, -15, 84, 30, [4, 6, 6, 4]);
       ctx.fill();
 
       // Yellow speed stripe
@@ -419,8 +470,7 @@ class KurupSpriteRenderer {
       // =====================================
       // Yellow top hood
       ctx.fillStyle = '#eab308';
-      ctx.beginPath();
-      ctx.roundRect(-12, -8, 24, 16, [4, 6, 6, 4]);
+      drawRoundedRect(ctx, -12, -8, 24, 16, [4, 6, 6, 4]);
       ctx.fill();
       // Black lower body
       ctx.fillStyle = '#111827';

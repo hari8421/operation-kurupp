@@ -368,9 +368,15 @@ function broadcastRoomState(room) {
       y: Math.round(Number(v.y) || 0),
       angle: Number((Number(v.angle) || 0).toFixed(2)),
       speed: Number((Number(v.speed) || 0).toFixed(1)),
+      maxSpeed: Number(v.maxSpeed) || 6.5,
       driverId: v.driverId || null,
-      color: v.color,
-      beacon: v.beacon
+      color: v.color || '#ffffff',
+      roofColor: v.roofColor || null,
+      stripeColor: v.stripeColor || null,
+      hoodColor: v.hoodColor || null,
+      beacon: Boolean(v.beacon),
+      horn: v.horn || 'honk',
+      isWater: Boolean(v.isWater)
     })),
     clues: room.clues,
     kurupState: {

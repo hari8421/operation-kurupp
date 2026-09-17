@@ -12,14 +12,22 @@ class KurupAudioEngine {
 
   init() {
     if (this.ctx) return;
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    this.ctx = new AudioContext();
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (AudioContext) {
+        this.ctx = new AudioContext();
+      }
+    } catch (e) {
+      console.warn('Web Audio initialization bypassed:', e);
+    }
   }
 
   ensureContext() {
     this.init();
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      try {
+        this.ctx.resume();
+      } catch (e) {}
     }
   }
 
@@ -207,32 +215,40 @@ class KurupAudioEngine {
   // Continuous vehicle engine sound
   startEngine(type = 'car') {
     if (this.muted || this.engineOsc) return;
-    this.ensureContext();
-    const ctx = this.ctx;
+    try {
+      this.ensureContext();
+      const ctx = this.ctx;
+      if (!ctx) return;
 
-    this.engineOsc = ctx.createOscillator();
-    this.engineGain = ctx.createGain();
+      this.engineOsc = ctx.createOscillator();
+      this.engineGain = ctx.createGain();
 
-    this.engineOsc.type = type === 'bullet' ? 'triangle' : 'sawtooth';
-    this.engineOsc.frequency.setValueAtTime(type === 'bullet' ? 45 : 65, ctx.currentTime);
-    this.engineGain.gain.setValueAtTime(0.06, ctx.currentTime);
+      this.engineOsc.type = type === 'bullet' ? 'triangle' : 'sawtooth';
+      this.engineOsc.frequency.setValueAtTime(type === 'bullet' ? 45 : 65, ctx.currentTime);
+      this.engineGain.gain.setValueAtTime(0.06, ctx.currentTime);
 
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(300, ctx.currentTime);
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(300, ctx.currentTime);
 
-    this.engineOsc.connect(filter);
-    filter.connect(this.engineGain);
-    this.engineGain.connect(ctx.destination);
+      this.engineOsc.connect(filter);
+      filter.connect(this.engineGain);
+      this.engineGain.connect(ctx.destination);
 
-    this.engineOsc.start();
+      this.engineOsc.start();
+    } catch (e) {
+      console.warn('Engine audio start failed:', e);
+      this.engineOsc = null;
+    }
   }
 
   updateEngine(speed, maxSpeed) {
-    if (!this.engineOsc || this.muted) return;
-    const ratio = Math.min(1, Math.abs(speed) / (maxSpeed || 6));
-    const targetFreq = 50 + ratio * 140;
-    this.engineOsc.frequency.linearRampToValueAtTime(targetFreq, this.ctx.currentTime + 0.05);
+    if (!this.engineOsc || this.muted || !this.ctx) return;
+    try {
+      const ratio = Math.min(1, Math.abs(speed) / (maxSpeed || 6));
+      const targetFreq = 50 + ratio * 140;
+      this.engineOsc.frequency.linearRampToValueAtTime(targetFreq, this.ctx.currentTime + 0.05);
+    } catch (e) {}
   }
 
   stopEngine() {
