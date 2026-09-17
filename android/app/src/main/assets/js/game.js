@@ -1,4 +1,38 @@
 // Operation Kurup: Core Game Loop, Input Controller & Client Sync
+
+// ============================================
+// POLYFILL: CanvasRenderingContext2D.roundRect
+// Ensures compatibility with ALL browsers/WebViews
+// ============================================
+if (typeof CanvasRenderingContext2D !== 'undefined' &&
+    !CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, radii) {
+    if (!radii) radii = 0;
+    let tl, tr, br, bl;
+    if (typeof radii === 'number') {
+      tl = tr = br = bl = radii;
+    } else if (Array.isArray(radii)) {
+      tl = radii[0] || 0;
+      tr = radii[1] || 0;
+      br = radii[2] || 0;
+      bl = radii[3] || 0;
+    } else {
+      tl = tr = br = bl = 0;
+    }
+    this.moveTo(x + tl, y);
+    this.lineTo(x + w - tr, y);
+    this.arcTo(x + w, y, x + w, y + tr, tr);
+    this.lineTo(x + w, y + h - br);
+    this.arcTo(x + w, y + h, x + w - br, y + h, br);
+    this.lineTo(x + bl, y + h);
+    this.arcTo(x, y + h, x, y + h - bl, bl);
+    this.lineTo(x, y + tl);
+    this.arcTo(x, y, x + tl, y, tl);
+    this.closePath();
+    return this;
+  };
+}
+
 class KurupGame {
   constructor() {
     this.canvas = document.getElementById('gameCanvas');
@@ -283,23 +317,20 @@ class KurupGame {
     window.addEventListener('touchend', onTouchEnd, { passive: false });
     window.addEventListener('touchcancel', onTouchEnd, { passive: false });
 
-    // Multi-Input Action Buttons (Support Pointerdown & Click for 0ms latency)
+    // Multi-Input Action Buttons (Debounced to prevent pointerdown + click race conditions)
     const setupButton = (id, callback) => {
       const btn = document.getElementById(id);
       if (!btn) return;
-      let handled = false;
-      btn.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        handled = true;
+      let lastTrigger = 0;
+      const trigger = (e) => {
+        if (e) e.preventDefault();
+        const now = performance.now();
+        if (now - lastTrigger < 250) return; // 250ms debounce
+        lastTrigger = now;
         callback();
-      });
-      btn.addEventListener('click', (e) => {
-        if (!handled) {
-          e.preventDefault();
-          callback();
-        }
-        handled = false;
-      });
+      };
+      btn.addEventListener('pointerdown', trigger);
+      btn.addEventListener('click', trigger);
     };
 
     setupButton('btn-interact', () => this.handleInteract());
@@ -401,35 +432,76 @@ class KurupGame {
           }
         });
 
-        // Sync vehicles while PRESERVING local authoritative driver position
+        // Sync vehicles while PRESERVING local authoritative driver position & vehicle parameters
         if (msg.vehicles && msg.vehicles.length > 0) {
-          msg.vehicles.forEach(serverV => {
-            if (this.player.vehicleId && serverV.id === this.player.vehicleId) {
-              serverV.x = this.player.x;
-              serverV.y = this.player.y;
-              serverV.angle = this.player.angle;
-              serverV.speed = this.player.speed;
-              serverV.driverId = this.player.id;
+          const serverMap = new Map();
+          msg.vehicles.forEach(sv => serverMap.set(sv.id, sv));
+
+          this.vehicles.forEach(localV => {
+            const sv = serverMap.get(localV.id);
+            if (sv) {
+              if (this.player.vehicleId && localV.id === this.player.vehicleId) {
+                // Local player is driving this vehicle: keep local authoritative physics
+                localV.x = this.player.x;
+                localV.y = this.player.y;
+                localV.angle = this.player.angle;
+                localV.speed = this.player.speed;
+                localV.driverId = this.player.id;
+              } else {
+                // Other vehicle: sync from server
+                if (typeof sv.x === 'number' && !isNaN(sv.x)) localV.x = sv.x;
+                if (typeof sv.y === 'number' && !isNaN(sv.y)) localV.y = sv.y;
+                if (typeof sv.angle === 'number' && !isNaN(sv.angle)) localV.angle = sv.angle;
+                if (typeof sv.speed === 'number' && !isNaN(sv.speed)) localV.speed = sv.speed;
+                localV.driverId = sv.driverId || null;
+              }
+              if (sv.color) localV.color = sv.color;
+              if (sv.beacon !== undefined) localV.beacon = sv.beacon;
+              if (sv.maxSpeed) localV.maxSpeed = Number(sv.maxSpeed) || localV.maxSpeed;
             }
           });
-          this.vehicles = msg.vehicles;
+
+          // Append any newly added vehicles from server (e.g. after era warp)
+          msg.vehicles.forEach(sv => {
+            if (!this.vehicles.some(lv => lv.id === sv.id)) {
+              this.vehicles.push({
+                ...sv,
+                maxSpeed: Number(sv.maxSpeed) || 6.5,
+                horn: sv.horn || 'honk'
+              });
+            }
+          });
         }
 
         this.updateUi();
         break;
 
       case 'VEHICLE_BOARDED':
-        this.player.vehicleId = msg.vehicleId;
-        window.kurupAudio.startEngine(msg.vehicleId.includes('bullet') ? 'bullet' : 'car');
-        this.showAlert(`🚗 Boarded: ${msg.vehicleName}`);
-        this.updateUi();
+        if (this.player.vehicleId !== msg.vehicleId) {
+          this.player.vehicleId = msg.vehicleId;
+          const v = this.vehicles.find(veh => veh.id === msg.vehicleId);
+          if (v) {
+            v.driverId = this.player.id;
+            this.player.x = v.x;
+            this.player.y = v.y;
+            this.player.angle = v.angle;
+          }
+          window.kurupAudio.startEngine(msg.vehicleId.includes('bullet') ? 'bullet' : 'car');
+          this.showAlert(`🚗 Boarded: ${msg.vehicleName || 'Vehicle'}`);
+          this.updateUi();
+        }
         break;
 
       case 'VEHICLE_EXITED':
-        this.player.vehicleId = null;
-        window.kurupAudio.stopEngine();
-        this.showAlert('Exited vehicle');
-        this.updateUi();
+        if (this.player.vehicleId) {
+          const oldV = this.vehicles.find(v => v.id === this.player.vehicleId);
+          if (oldV) oldV.driverId = null;
+          this.player.vehicleId = null;
+          this.player.speed = 0;
+          window.kurupAudio.stopEngine();
+          this.showAlert('Exited vehicle');
+          this.updateUi();
+        }
         break;
 
       case 'DISGUISE_CHANGED':
@@ -606,8 +678,20 @@ class KurupGame {
       // VEHICLE DRIVING PHYSICS (Keyboard & Touch)
       // =======================================
       const currentVehicle = this.vehicles.find(v => v.id === this.player.vehicleId);
-      const maxSpeed = (currentVehicle ? currentVehicle.maxSpeed : 6.5) * (this.harthalActive ? 0.35 : 1.0);
-      const accel = (currentVehicle && currentVehicle.type.includes('bullet') ? 0.32 : 0.24);
+
+      // Safety: if vehicle no longer exists (era change, server desync), auto-exit
+      if (!currentVehicle) {
+        console.warn('Vehicle', this.player.vehicleId, 'not found, auto-exiting.');
+        this.player.vehicleId = null;
+        this.player.speed = 0;
+        window.kurupAudio.stopEngine();
+        this.showAlert('Vehicle lost — back on foot.');
+        this.updateUi();
+        return;
+      }
+
+      const maxSpeed = currentVehicle.maxSpeed * (this.harthalActive ? 0.35 : 1.0);
+      const accel = (currentVehicle.type.includes('bullet') ? 0.32 : 0.24);
 
       const isForward = this.keys['KeyW'] || this.keys['ArrowUp'];
       const isReverse = this.keys['KeyS'] || this.keys['ArrowDown'];
@@ -870,6 +954,21 @@ class KurupGame {
     // 6. Draw Local Player (if not inside vehicle)
     if (!this.player.vehicleId) {
       window.kurupSprites.drawCharacter(ctx, this.player, true);
+    } else {
+      // Player is inside a vehicle — draw their name above the vehicle so it's
+      // clear the character hasn't vanished. The cyan halo on the vehicle
+      // already marks it as locally driven; we add the name tag here.
+      const dv = this.vehicles.find(v => v.id === this.player.vehicleId);
+      if (dv) {
+        ctx.save();
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillStyle = '#38bdf8';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 5;
+        ctx.fillText(this.player.name, dv.x, dv.y - 42);
+        ctx.restore();
+      }
     }
 
     // 7. Draw AI Kurup (if active)
@@ -918,6 +1017,14 @@ class KurupGame {
       this.kurupState,
       this.clues
     );
+
+    // 10. Live speed readout — updated every frame so the dashboard never lags
+    if (this.player.vehicleId) {
+      const speedEl = document.getElementById('dashSpeed');
+      if (speedEl) {
+        speedEl.textContent = `${Math.round(Math.abs(this.player.speed) * 16)} km/h`;
+      }
+    }
   }
 
   updateUi() {
@@ -1007,8 +1114,29 @@ class KurupGame {
     const dt = Math.min(0.1, (timestamp - this.lastTime) / 1000);
     this.lastTime = timestamp;
 
-    this.update(dt);
-    this.render();
+    try {
+      this.update(dt);
+    } catch (e) {
+      console.error('Update error:', e);
+      // Auto-recover: if we're in a bad vehicle state, exit it
+      if (this.player.vehicleId) {
+        this.player.vehicleId = null;
+        this.player.speed = 0;
+      }
+    }
+
+    // IMPORTANT: always reset the canvas transform before rendering so that
+    // any mid-render exception (caught below) cannot cause the viewport
+    // ctx.translate() to accumulate across frames, which freezes the screen.
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    try {
+      this.render();
+    } catch (e) {
+      console.error('Render error:', e);
+      // Safety-reset transform again in case render threw mid-save/translate
+      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
 
     requestAnimationFrame((t) => this.gameLoop(t));
   }
