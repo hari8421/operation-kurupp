@@ -261,7 +261,173 @@ class KurupAudioEngine {
     }
   }
 
-  // 1980s Retro Kerala Thriller Synth BGM
+  // =====================================
+  // CHARACTER VOICE SOUNDS (Faction-specific)
+  // Each faction has a distinct synthesized vocal character
+  // =====================================
+
+  // playVoice(faction, intensity) — intensity 0..1
+  playVoice(faction, intensity = 0.6) {
+    if (this.muted) return;
+    this.ensureContext();
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    if (faction === 'police') {
+      // Sharp police whistle + authoritative bark
+      // Whistle
+      const wOsc = ctx.createOscillator();
+      const wGain = ctx.createGain();
+      wOsc.type = 'sine';
+      wOsc.frequency.setValueAtTime(2400, now);
+      wOsc.frequency.linearRampToValueAtTime(2800, now + 0.06);
+      wOsc.frequency.linearRampToValueAtTime(2200, now + 0.18);
+      wGain.gain.setValueAtTime(0, now);
+      wGain.gain.linearRampToValueAtTime(intensity * 0.35, now + 0.02);
+      wGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      wOsc.connect(wGain); wGain.connect(ctx.destination);
+      wOsc.start(now); wOsc.stop(now + 0.24);
+
+      // Bark — low voiced formants
+      this._voicedFormant(ctx, now + 0.2, 180, 0.45 * intensity, 0.14, 'sawtooth');
+      this._voicedFormant(ctx, now + 0.2, 360, 0.2 * intensity, 0.14, 'sawtooth');
+      this._voicedFormant(ctx, now + 0.38, 200, 0.3 * intensity, 0.12, 'sawtooth');
+
+    } else if (faction === 'red_cadre') {
+      // Rising political slogan shout — resonant chest voice
+      const pitches = [140, 160, 180, 155];
+      pitches.forEach((p, i) => {
+        const t = now + i * 0.11;
+        this._voicedFormant(ctx, t, p, 0.28 * intensity, 0.18, 'sawtooth');
+        this._voicedFormant(ctx, t, p * 2.1, 0.14 * intensity, 0.18, 'sawtooth');
+        this._voicedFormant(ctx, t, p * 3.4, 0.08 * intensity, 0.18, 'sawtooth');
+      });
+      // Crowd echo (soft)
+      this._voicedFormant(ctx, now + 0.55, 130, 0.12 * intensity, 0.35, 'sawtooth');
+
+    } else if (faction === 'tricolor_cadre') {
+      // Enthusiastic mid-range call, slight nasal quality
+      const pitches = [165, 185, 165, 145];
+      pitches.forEach((p, i) => {
+        const t = now + i * 0.1;
+        this._voicedFormant(ctx, t, p, 0.22 * intensity, 0.16, 'sawtooth');
+        this._voicedFormant(ctx, t, p * 2.5, 0.1 * intensity, 0.16, 'sawtooth');
+      });
+
+    } else if (faction === 'gulf_syndicate') {
+      // Confident Gulf-returnee laugh — breathy, slightly higher pitch
+      const laughSteps = [220, 240, 210, 230, 200];
+      laughSteps.forEach((p, i) => {
+        const t = now + i * 0.09;
+        this._voicedFormant(ctx, t, p, 0.2 * intensity, 0.12, 'sawtooth');
+        this._voicedFormant(ctx, t, p * 1.9, 0.1 * intensity, 0.1, 'triangle');
+      });
+      // Breathy aspiration noise
+      const noise = ctx.createOscillator();
+      const nGain = ctx.createGain();
+      noise.type = 'sawtooth';
+      noise.frequency.setValueAtTime(800, now);
+      nGain.gain.setValueAtTime(0.05 * intensity, now);
+      nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+      noise.connect(nGain); nGain.connect(ctx.destination);
+      noise.start(now); noise.stop(now + 0.55);
+
+    } else if (faction === 'kurup') {
+      // Nervous, whispered mutter — low, fast, furtive
+      const mutterPitches = [120, 135, 125, 140, 118];
+      mutterPitches.forEach((p, i) => {
+        const t = now + i * 0.07;
+        this._voicedFormant(ctx, t, p, 0.14 * intensity, 0.09, 'sawtooth');
+        this._voicedFormant(ctx, t, p * 2.2, 0.07 * intensity, 0.09, 'triangle');
+      });
+
+    } else {
+      // Default — short neutral grunt
+      this._voicedFormant(ctx, now, 160, 0.25 * intensity, 0.15, 'sawtooth');
+      this._voicedFormant(ctx, now + 0.12, 145, 0.18 * intensity, 0.12, 'sawtooth');
+    }
+  }
+
+  // Synthesized voiced formant (building block of speech-like sounds)
+  // Creates a band-passed oscillator that mimics a vocal tract resonance
+  _voicedFormant(ctx, startTime, freq, gain, duration, type = 'sawtooth') {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, startTime);
+    // Slight pitch droop — more natural
+    osc.frequency.linearRampToValueAtTime(freq * 0.92, startTime + duration);
+
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(freq * 2.8, startTime);
+    filter.Q.value = 4;
+
+    g.gain.setValueAtTime(0, startTime);
+    g.gain.linearRampToValueAtTime(gain, startTime + duration * 0.15);
+    g.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+    osc.connect(filter);
+    filter.connect(g);
+    g.connect(ctx.destination);
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.02);
+  }
+
+  // Short typing click (subtle mechanical key tap)
+  playTypingClick() {
+    if (this.muted) return;
+    this.ensureContext();
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const bufSize = Math.floor(ctx.sampleRate * 0.018);
+    const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSize * 0.25));
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 3500;
+    f.Q.value = 2;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.06, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.018);
+    src.connect(f); f.connect(g); g.connect(ctx.destination);
+    src.start(now); src.stop(now + 0.02);
+  }
+
+  // Shout intensity based on text (ALL CAPS = louder/higher pitch)
+  playTextShout(text, faction) {
+    if (this.muted) return;
+    const isLoud = text === text.toUpperCase() && text.trim().length > 2;
+    const intensity = isLoud ? 0.9 : 0.55;
+    this.playVoice(faction, intensity);
+
+    // Extra exclamation punch for ALL CAPS
+    if (isLoud) {
+      this.ensureContext();
+      const ctx = this.ctx;
+      if (!ctx) return;
+      const now = ctx.currentTime + 0.05;
+      // Impact thump
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(80, now);
+      osc.frequency.exponentialRampToValueAtTime(35, now + 0.12);
+      g.gain.setValueAtTime(0.3, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(now); osc.stop(now + 0.15);
+    }
+  }
   startBgm() {
     if (this.bgmPlaying || this.muted) return;
     this.ensureContext();

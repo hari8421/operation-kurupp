@@ -357,6 +357,16 @@ body, html {
   background: rgba(180, 83, 9, 0.7);
 }
 
+.btn-shout {
+  border-color: #a855f7;
+  background: rgba(109, 40, 217, 0.7);
+}
+
+.btn-shout:active {
+  background: #7c3aed;
+  transform: scale(0.9);
+}
+
 .btn-ability {
   width: 72px;
   height: 72px;

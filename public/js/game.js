@@ -295,6 +295,8 @@ class KurupGame {
       if (e.code === 'KeyQ' || e.code === 'KeyF') this.handleAbility();
       if (e.code === 'KeyM') this.toggleAudio();
       if (e.code === 'KeyC') this.toggleCaseFile();
+      if (e.code === 'KeyZ') this.handleVoiceShout(0.65);
+      if (e.code === 'KeyX') this.handleVoiceShout(0.9);
     });
 
     window.addEventListener('keyup', (e) => {
@@ -380,6 +382,7 @@ class KurupGame {
     setupButton('btn-interact', () => this.handleInteract());
     setupButton('btn-horn', () => this.handleHorn());
     setupButton('btn-ability', () => this.handleAbility());
+    setupButton('btn-shout', () => this.handleVoiceShout(0.75));
 
     // Sprint Button (Press and Hold)
     const sprintBtn = document.getElementById('btn-sprint');
@@ -575,6 +578,39 @@ class KurupGame {
                    : this.wantedLevel >= 2 ? '#f59e0b'
                    : '#6b7280';
     el.style.display = this.wantedLevel > 0 ? 'block' : 'none';
+  }
+
+  // ==========================================
+  // CHARACTER VOICE / SHOUT
+  // ==========================================
+  handleVoiceShout(intensity = 0.65) {
+    window.kurupAudio.ensureContext();
+    const now = performance.now();
+    // 800ms cooldown to prevent spam
+    if (this._lastShoutTime && now - this._lastShoutTime < 800) return;
+    this._lastShoutTime = now;
+
+    window.kurupAudio.playVoice(this.player.faction, intensity);
+
+    // Show speech bubble with faction-appropriate phrase
+    const phrases = {
+      police:         ['STOP! POLICE!', 'Nikkeda!', 'Surrender NOW!', 'Nobody move!', 'Hands up!'],
+      red_cadre:      ['Inquilab Zindabad!', 'Lal Salaam!', 'Harthal!', 'Janangale jagratha!', 'Samara vijayam!'],
+      tricolor_cadre: ['Jai Hind!', 'Bharat Mata Ki Jai!', 'Vande Mataram!', 'Democracy wins!'],
+      gulf_syndicate: ['Eda machane!', 'Gulf-il ninn vannu!', 'Panam und, pedi venda!', 'Ayyy!'],
+      kurup:          ['...', 'Nobody saw me.', '*looks around nervously*', 'Njaan Kurupalla!']
+    };
+    const list = phrases[this.player.faction] || phrases.police;
+    const phrase = list[Math.floor(Math.random() * list.length)];
+
+    // Store bubble state for render
+    this.speechBubble = {
+      text: phrase,
+      x: this.player.x,
+      y: this.player.y,
+      life: 1.0,
+      intensity
+    };
   }
 
   // ==========================================
@@ -855,6 +891,14 @@ class KurupGame {
 
       this.player.x += Math.cos(this.player.angle) * this.player.speed;
       this.player.y += Math.sin(this.player.angle) * this.player.speed;
+    }
+
+    // ── SPEECH BUBBLE FADE ───────────────────────────────────────────────
+    if (this.speechBubble && this.speechBubble.life > 0) {
+      this.speechBubble.life -= dt * 0.9;
+      // Track player position
+      this.speechBubble.x = this.player.x;
+      this.speechBubble.y = this.player.y;
     }
 
     // World Boundary Constraints
@@ -1325,6 +1369,62 @@ class KurupGame {
         ctx.shadowBlur = 0;
         ctx.restore();
       }
+    }
+
+    // 6b. Speech bubble above player (or above vehicle if driving)
+    if (this.speechBubble && this.speechBubble.life > 0) {
+      const sb = this.speechBubble;
+      const alpha = Math.min(1, sb.life * 2); // fade out last 50% of life
+      const px = sb.x;
+      const py = sb.y - (this.player.vehicleId ? 60 : 46);
+      const isLoud = sb.intensity >= 0.85;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      // Measure text
+      ctx.font = `bold ${isLoud ? 13 : 11}px sans-serif`;
+      const tw = ctx.measureText(sb.text).width;
+      const bw = tw + 18;
+      const bh = 22;
+      const bx = px - bw / 2;
+      const by = py - bh / 2;
+
+      // Bubble fill
+      ctx.fillStyle = isLoud ? 'rgba(239,68,68,0.92)' : 'rgba(17,24,39,0.88)';
+      ctx.strokeStyle = isLoud ? '#fca5a5' : '#38bdf8';
+      ctx.lineWidth = isLoud ? 2 : 1.5;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bw, bh, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      // Tail pointing down to character
+      ctx.fillStyle = isLoud ? 'rgba(239,68,68,0.92)' : 'rgba(17,24,39,0.88)';
+      ctx.beginPath();
+      ctx.moveTo(px - 6, by + bh);
+      ctx.lineTo(px + 6, by + bh);
+      ctx.lineTo(px, by + bh + 8);
+      ctx.closePath();
+      ctx.fill();
+
+      // Text
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.fillText(sb.text, px, by + bh * 0.67);
+
+      // Exclamation rings for loud shout
+      if (isLoud) {
+        const ring = (1 - sb.life) * 28;
+        ctx.strokeStyle = `rgba(239,68,68,${alpha * 0.4})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(px, py, 22 + ring, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      ctx.globalAlpha = 1;
+      ctx.restore();
     }
 
     // 7. Draw AI Kurup

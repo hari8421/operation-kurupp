@@ -49,7 +49,7 @@
 
     <!-- Keyboard Controls Hint for Desktop -->
     <div id="controls-hint">
-      <strong>[WASD/Arrows]</strong> Move &bull; <strong>[Shift]</strong> Sprint &bull; <strong>[E]</strong> Enter/Exit Car / Inspect Clue &bull; <strong>[Space]</strong> Horn/Siren &bull; <strong>[Q/F]</strong> Ability &bull; <strong>[C]</strong> Case File
+      <strong>[WASD/Arrows]</strong> Move &bull; <strong>[Shift]</strong> Sprint &bull; <strong>[E]</strong> Enter/Exit Car / Clue &bull; <strong>[Space]</strong> Horn &bull; <strong>[Q/F]</strong> Ability &bull; <strong>[Z]</strong> Shout &bull; <strong>[X]</strong> Yell &bull; <strong>[C]</strong> Case File
     </div>
 
     <!-- Radio / Police Scanner Log -->
@@ -91,6 +91,10 @@
           <button id="btn-sprint" class="action-btn btn-sprint" title="Sprint">
             <span class="btn-icon">🏃</span>
             <span>SPRINT</span>
+          </button>
+          <button id="btn-shout" class="action-btn btn-shout" title="Shout / Voice">
+            <span class="btn-icon">🗣️</span>
+            <span>SHOUT</span>
           </button>
           <button id="btn-horn" class="action-btn btn-horn" title="Horn / Siren">
             <span class="btn-icon">📢</span>
@@ -281,10 +285,26 @@
     // Radio Input Send
     const radioInput = document.getElementById('radio-input');
     radioInput.addEventListener('keydown', (e) => {
+      // Typing click on every keypress (except Enter/Backspace/modifiers)
+      if (e.key.length === 1 && window.kurupAudio) {
+        window.kurupAudio.playTypingClick();
+      }
       if (e.key === 'Enter' && radioInput.value.trim() && window.gameInstance) {
+        const text = radioInput.value.trim();
+        // Voice shout — louder for ALL CAPS messages
+        const isLoud = text === text.toUpperCase() && text.length > 2;
+        window.kurupAudio.playTextShout(text, window.gameInstance.player.faction);
+        // Show speech bubble
+        window.gameInstance.speechBubble = {
+          text: text.length > 28 ? text.substring(0, 26) + '…' : text,
+          x: window.gameInstance.player.x,
+          y: window.gameInstance.player.y,
+          life: 1.4,
+          intensity: isLoud ? 0.9 : 0.6
+        };
         window.gameInstance.sendWsMessage({
           type: 'CHAT_MESSAGE',
-          text: radioInput.value.trim()
+          text: text
         });
         radioInput.value = '';
       }
